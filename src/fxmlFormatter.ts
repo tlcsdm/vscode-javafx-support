@@ -106,14 +106,12 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
         const tokens: string[] = [];
         let current = '';
         let inTag = false;
-        const inComment = false;
-        const inCdata = false;
 
         for (let i = 0; i < xml.length; i++) {
             const char = xml[i];
 
             // Handle CDATA sections
-            if (!inComment && xml.substring(i, i + 9) === '<![CDATA[') {
+            if (xml.substring(i, i + 9) === '<![CDATA[') {
                 if (current.trim()) {
                     tokens.push(current);
                 }
@@ -127,7 +125,7 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
             }
 
             // Handle comments
-            if (!inComment && xml.substring(i, i + 4) === '<!--') {
+            if (xml.substring(i, i + 4) === '<!--') {
                 if (current.trim()) {
                     tokens.push(current);
                 }
@@ -140,7 +138,7 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
                 }
             }
 
-            if (char === '<' && !inComment && !inCdata) {
+            if (char === '<') {
                 if (current.trim()) {
                     tokens.push(current);
                 }
