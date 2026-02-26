@@ -1,0 +1,99 @@
+# This workflow automatically updates engines.vscode when @types/vscode has a major or minor version change
+name: Sync VSCode Engine Version
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-vscode-engine:
+    # Only run for dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          
+      - name: Check if @types/vscode was updated
+        id: check_update
+        run: |
+          # Get the PR title
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+          
+          # Check if this PR is about @types/vscode
+          if [[ "$PR_TITLE" == *"@types/vscode"* ]]; then
+            echo "types_vscode_updated=true" >> $GITHUB_OUTPUT
+            
+            # Extract version from package.json
+            TYPES_VERSION=$(node -p "require('./package.json').devDependencies['@types/vscode']" | sed 's/[\^~]//g')
+            echo "types_version=$TYPES_VERSION" >> $GITHUB_OUTPUT
+            echo "Found @types/vscode version: $TYPES_VERSION"
+          else
+            echo "types_vscode_updated=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Update engines.vscode
+        if: steps.check_update.outputs.types_vscode_updated == 'true'
+        id: update_engine
+        run: |
+          TYPES_VERSION="${{ steps.check_update.outputs.types_version }}"
+          
+          # Extract major.minor from the version (e.g., 1.109.0 -> 1.109)
+          MAJOR_MINOR=$(echo "$TYPES_VERSION" | cut -d. -f1,2)
+          ENGINE_VERSION="^${MAJOR_MINOR}.0"
+          
+          echo "Setting engines.vscode to: $ENGINE_VERSION"
+          
+          # Update package.json using node
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const currentEngine = pkg.engines.vscode;
+            const newEngine = '$ENGINE_VERSION';
+            
+            console.log('Current engines.vscode:', currentEngine);
+            console.log('New engines.vscode:', newEngine);
+            
+            if (currentEngine !== newEngine) {
+              pkg.engines.vscode = newEngine;
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+              console.log('Updated engines.vscode');
+              console.log('changes_made=true');
+            } else {
+              console.log('No update needed');
+              console.log('changes_made=false');
+            }
+          " | tee /tmp/update-output.txt
+          
+          # Extract the changes_made value from output
+          if grep -q "changes_made=true" /tmp/update-output.txt; then
+            echo "changes_made=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Commit changes
+        if: steps.check_update.outputs.types_vscode_updated == 'true' && steps.update_engine.outputs.changes_made == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json
+          git commit -m "chore: update engines.vscode to match @types/vscode version"
+          git push

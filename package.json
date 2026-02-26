@@ -1,0 +1,111 @@
+{
+  "name": "tlcsdm-javafx-support",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "1.0.0",
+  "publisher": "unknowIfGuestInDream",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tlcsdm/vscode-javafx-support"
+  },
+  "bugs": {
+    "url": "https://github.com/tlcsdm/vscode-javafx-support/issues"
+  },
+  "homepage": "https://github.com/tlcsdm/vscode-javafx-support#readme",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Other"
+  ],
+  "keywords": [
+    "javafx",
+    "fxml",
+    "scenebuilder",
+    "java",
+    "scene builder"
+  ],
+  "activationEvents": [
+    "onLanguage:fxml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "fxml",
+        "aliases": [
+          "FXML",
+          "fxml"
+        ],
+        "extensions": [
+          ".fxml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "fxml",
+        "scopeName": "text.xml.fxml",
+        "path": "./syntaxes/fxml.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "tlcsdm.javafxSupport.openInSceneBuilder",
+        "title": "%command.openInSceneBuilder.title%",
+        "category": "%command.openInSceneBuilder.category%"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == fxml",
+          "command": "tlcsdm.javafxSupport.openInSceneBuilder",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceLangId == fxml",
+          "command": "tlcsdm.javafxSupport.openInSceneBuilder",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "%config.title%",
+      "properties": {
+        "tlcsdm.javafxSupport.sceneBuilderPath": {
+          "type": "string",
+          "default": "",
+          "description": "%config.sceneBuilderPath.description%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test --config ./.vscode-test.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0"
+  },
+  "license": "MIT"
+}
