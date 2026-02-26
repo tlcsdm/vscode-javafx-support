@@ -1,0 +1,118 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "FXML",
+    "scopeName": "text.xml.fxml",
+    "patterns": [
+        { "include": "#xmlProcessingInstruction" },
+        { "include": "#fxmlImport" },
+        { "include": "#comment" },
+        { "include": "#cdata" },
+        { "include": "#tag" }
+    ],
+    "repository": {
+        "xmlProcessingInstruction": {
+            "begin": "<\\?",
+            "end": "\\?>",
+            "name": "meta.tag.preprocessor.xml.fxml",
+            "patterns": [
+                {
+                    "match": "(xml|import)",
+                    "name": "entity.name.tag.xml.fxml"
+                },
+                { "include": "#attribute" }
+            ]
+        },
+        "fxmlImport": {
+            "match": "<\\?import\\s+([\\w\\.\\*]+)\\s*\\?>",
+            "name": "meta.tag.preprocessor.import.fxml",
+            "captures": {
+                "1": { "name": "entity.name.type.import.fxml" }
+            }
+        },
+        "comment": {
+            "begin": "<!--",
+            "end": "-->",
+            "name": "comment.block.xml.fxml"
+        },
+        "cdata": {
+            "begin": "<!\\[CDATA\\[",
+            "end": "\\]\\]>",
+            "name": "string.unquoted.cdata.xml.fxml"
+        },
+        "tag": {
+            "patterns": [
+                { "include": "#selfClosingTag" },
+                { "include": "#openTag" },
+                { "include": "#closeTag" }
+            ]
+        },
+        "selfClosingTag": {
+            "begin": "(<)(/?)(([\\w\\.]+:)?([\\w\\.]+))",
+            "end": "(/?>)",
+            "beginCaptures": {
+                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "2": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "4": { "name": "entity.name.tag.namespace.xml.fxml" },
+                "5": { "name": "entity.name.tag.localname.xml.fxml" }
+            },
+            "endCaptures": {
+                "1": { "name": "punctuation.definition.tag.end.xml.fxml" }
+            },
+            "patterns": [
+                { "include": "#fxAttribute" },
+                { "include": "#eventHandlerAttribute" },
+                { "include": "#attribute" }
+            ]
+        },
+        "openTag": {
+            "begin": "(<)([\\w\\.]+)",
+            "end": "(>)",
+            "beginCaptures": {
+                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "2": { "name": "entity.name.tag.localname.xml.fxml" }
+            },
+            "endCaptures": {
+                "1": { "name": "punctuation.definition.tag.end.xml.fxml" }
+            },
+            "patterns": [
+                { "include": "#fxAttribute" },
+                { "include": "#eventHandlerAttribute" },
+                { "include": "#attribute" }
+            ]
+        },
+        "closeTag": {
+            "match": "(</)([\\w\\.]+)(>)",
+            "captures": {
+                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "2": { "name": "entity.name.tag.localname.xml.fxml" },
+                "3": { "name": "punctuation.definition.tag.end.xml.fxml" }
+            }
+        },
+        "fxAttribute": {
+            "match": "(fx:(id|controller|value|factory|constant|reference|include|define|copy|root))\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
+            "captures": {
+                "1": { "name": "entity.other.attribute-name.namespace.xml.fxml support.type.fxml" },
+                "3": { "name": "punctuation.separator.key-value.xml.fxml" },
+                "4": { "name": "string.quoted.double.xml.fxml" }
+            }
+        },
+        "eventHandlerAttribute": {
+            "match": "(on\\w+)\\s*(=)\\s*(\"(#[\\w]+)\"|'(#[\\w]+)')",
+            "captures": {
+                "1": { "name": "entity.other.attribute-name.xml.fxml support.function.event.fxml" },
+                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
+                "3": { "name": "string.quoted.double.xml.fxml" },
+                "4": { "name": "entity.name.function.event-handler.fxml" },
+                "5": { "name": "entity.name.function.event-handler.fxml" }
+            }
+        },
+        "attribute": {
+            "match": "([\\w\\-\\.]+(?::[\\w\\-\\.]+)?)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
+            "captures": {
+                "1": { "name": "entity.other.attribute-name.xml.fxml" },
+                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
+                "3": { "name": "string.quoted.double.xml.fxml" }
+            }
+        }
+    }
+}

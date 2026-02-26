@@ -1,0 +1,6 @@
+{
+  "version": "stable",
+  "files": "./out/test/extension.test.js",
+  "extensionDevelopmentPath": ".",
+  "extensionTestsPath": "./out/test/extension.test.js"
+}

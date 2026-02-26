@@ -1,0 +1,8 @@
+{
+    "displayName": "Tlcsdm JavaFX サポート",
+    "description": "VS Code 向け JavaFX 開発サポート。FXML シンタックスハイライト、Scene Builder 統合、コードナビゲーション、FXML フォーマットを提供",
+    "command.openInSceneBuilder.title": "Scene Builder で開く",
+    "command.openInSceneBuilder.category": "JavaFX",
+    "config.title": "JavaFX サポート",
+    "config.sceneBuilderPath.description": "Scene Builder 実行ファイルのパス。空の場合、拡張機能は自動的に検索します。"
+}
