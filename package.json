@@ -70,14 +70,14 @@
         {
           "when": "resourceLangId == fxml",
           "command": "tlcsdm.javafxSupport.openInSceneBuilder",
-          "group": "navigation"
+          "group": "z_commands"
         }
       ],
       "explorer/context": [
         {
           "when": "resourceLangId == fxml",
           "command": "tlcsdm.javafxSupport.openInSceneBuilder",
-          "group": "navigation"
+          "group": "z_commands"
         }
       ]
     },
