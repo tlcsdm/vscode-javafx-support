@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { openInSceneBuilder } from './sceneBuilder';
+import { openInSceneBuilder, setSceneBuilderPath } from './sceneBuilder';
 import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
 import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
 import { FxmlFormattingEditProvider } from './fxmlFormatter';
@@ -15,6 +15,16 @@ export function activate(context: vscode.ExtensionContext): void {
             'tlcsdm.javafxSupport.openInSceneBuilder',
             (uri?: vscode.Uri) => {
                 openInSceneBuilder(uri);
+            }
+        )
+    );
+
+    // Register Set Scene Builder Path command
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'tlcsdm.javafxSupport.setSceneBuilderPath',
+            () => {
+                setSceneBuilderPath();
             }
         )
     );

@@ -55,6 +55,31 @@ function detectSceneBuilder(): string | undefined {
 }
 
 /**
+ * Browse for Scene Builder executable using a file dialog and save to settings
+ */
+export async function setSceneBuilderPath(): Promise<void> {
+    const filters: Record<string, string[]> =
+        process.platform === 'win32'
+            ? { 'Executable': ['exe'] }
+            : { 'All Files': ['*'] };
+
+    const result = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        openLabel: 'Select Scene Builder',
+        filters
+    });
+
+    if (result && result.length > 0) {
+        const selectedPath = result[0].fsPath;
+        const config = vscode.workspace.getConfiguration('tlcsdm.javafxSupport');
+        await config.update('sceneBuilderPath', selectedPath, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Scene Builder path set to: ${selectedPath}`);
+    }
+}
+
+/**
  * Open an FXML file in Scene Builder
  */
 export function openInSceneBuilder(uri?: vscode.Uri): void {
@@ -73,14 +98,18 @@ export function openInSceneBuilder(uri?: vscode.Uri): void {
     const sceneBuilderPath = getSceneBuilderPath();
 
     if (!sceneBuilderPath) {
+        const browse = 'Browse...';
         const openSettings = 'Open Settings';
         vscode.window
             .showErrorMessage(
                 'Scene Builder not found. Please configure the path in settings.',
+                browse,
                 openSettings
             )
             .then(selection => {
-                if (selection === openSettings) {
+                if (selection === browse) {
+                    vscode.commands.executeCommand('tlcsdm.javafxSupport.setSceneBuilderPath');
+                } else if (selection === openSettings) {
                     vscode.commands.executeCommand(
                         'workbench.action.openSettings',
                         'tlcsdm.javafxSupport.sceneBuilderPath'

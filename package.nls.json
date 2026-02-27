@@ -3,6 +3,8 @@
     "description": "JavaFX development support for VS Code with FXML syntax highlighting, Scene Builder integration, code navigation, and FXML formatting",
     "command.openInSceneBuilder.title": "Open in Scene Builder",
     "command.openInSceneBuilder.category": "JavaFX",
+    "command.setSceneBuilderPath.title": "Set Scene Builder Path",
+    "command.setSceneBuilderPath.category": "JavaFX",
     "config.title": "JavaFX Support",
     "config.sceneBuilderPath.description": "Path to Scene Builder executable. If empty, the extension will try to find it automatically."
 }
