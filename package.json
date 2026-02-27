@@ -29,7 +29,8 @@
     "scene builder"
   ],
   "activationEvents": [
-    "onLanguage:fxml"
+    "onLanguage:fxml",
+    "onLanguage:java"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -43,6 +44,10 @@
         "extensions": [
           ".fxml"
         ],
+        "icon": {
+          "light": "./images/fxml-light.svg",
+          "dark": "./images/fxml-dark.svg"
+        },
         "configuration": "./language-configuration.json"
       }
     ],
