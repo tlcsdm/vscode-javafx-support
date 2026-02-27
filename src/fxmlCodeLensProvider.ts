@@ -27,30 +27,32 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
             const lineText = document.lineAt(i).text;
 
             if (lineText.trim().startsWith('@FXML')) {
-                // Find the next non-annotation, non-empty line (the actual member declaration)
-                let memberLine = -1;
-                for (let j = i + 1; j < document.lineCount && j <= i + 3; j++) {
-                    const nextLine = document.lineAt(j).text.trim();
-                    if (nextLine !== '' && !nextLine.startsWith('@')) {
-                        memberLine = j;
-                        break;
+                // Try to extract member name from the current line first
+                // (handles case where @FXML is on the same line as the declaration)
+                let memberName = this.extractMemberName(lineText);
+                let memberLineText = lineText;
+
+                if (!memberName) {
+                    // Find the next non-annotation, non-empty line (the actual member declaration)
+                    for (let j = i + 1; j < document.lineCount && j <= i + 3; j++) {
+                        const nextLine = document.lineAt(j).text.trim();
+                        if (nextLine !== '' && !nextLine.startsWith('@')) {
+                            memberLineText = document.lineAt(j).text;
+                            memberName = this.extractMemberName(memberLineText);
+                            break;
+                        }
                     }
                 }
 
-                if (memberLine >= 0) {
-                    const memberLineText = document.lineAt(memberLine).text;
-                    const memberName = this.extractMemberName(memberLineText);
-                    const isMethod = memberName ? this.isMethodDeclaration(memberLineText, memberName) : false;
-
-                    if (memberName) {
-                        const range = new vscode.Range(i, 0, i, lineText.length);
-                        const codeLens = new vscode.CodeLens(range, {
-                            title: '$(link-external) Go to FXML',
-                            command: 'tlcsdm.javafxSupport.goToFxml',
-                            arguments: [controllerClassName, memberName, isMethod]
-                        });
-                        codeLenses.push(codeLens);
-                    }
+                if (memberName) {
+                    const isMethod = this.isMethodDeclaration(memberLineText, memberName);
+                    const range = new vscode.Range(i, 0, i, lineText.length);
+                    const codeLens = new vscode.CodeLens(range, {
+                        title: '$(link-external) Go to FXML',
+                        command: 'tlcsdm.javafxSupport.goToFxml',
+                        arguments: [controllerClassName, memberName, isMethod]
+                    });
+                    codeLenses.push(codeLens);
                 }
             }
         }
