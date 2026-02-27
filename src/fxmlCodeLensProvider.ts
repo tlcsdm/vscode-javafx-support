@@ -93,7 +93,7 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
      * Check if the line contains a method declaration with the given name
      */
     private isMethodDeclaration(line: string, name: string): boolean {
-        const pattern = new RegExp(`\\b${this.escapeRegex(name)}\\s*\\(`);
+        const pattern = new RegExp(`\\b${escapeRegex(name)}\\s*\\(`);
         return pattern.test(line);
     }
 
@@ -114,9 +114,6 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
         return packageName ? `${packageName}.${classMatch[1]}` : classMatch[1];
     }
 
-    private escapeRegex(str: string): string {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
 }
 
 /**
@@ -141,7 +138,7 @@ export async function goToFxmlCommand(
         let targetChar = 0;
 
         if (isMethod) {
-            const pattern = new RegExp(`="#${escapeRegex(memberName)}"`);
+            const pattern = new RegExp(`=\\s*"#${escapeRegex(memberName)}"`);
             for (let i = 0; i < document.lineCount; i++) {
                 const match = pattern.exec(document.lineAt(i).text);
                 if (match) {
