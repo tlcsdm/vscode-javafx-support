@@ -63,6 +63,11 @@
         "command": "tlcsdm.javafxSupport.openInSceneBuilder",
         "title": "%command.openInSceneBuilder.title%",
         "category": "%command.openInSceneBuilder.category%"
+      },
+      {
+        "command": "tlcsdm.javafxSupport.setSceneBuilderPath",
+        "title": "%command.setSceneBuilderPath.title%",
+        "category": "%command.setSceneBuilderPath.category%"
       }
     ],
     "menus": {

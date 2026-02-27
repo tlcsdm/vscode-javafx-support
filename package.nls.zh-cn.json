@@ -3,6 +3,8 @@
     "description": "VS Code 的 JavaFX 开发支持，提供 FXML 语法高亮、Scene Builder 集成、代码导航和 FXML 格式化",
     "command.openInSceneBuilder.title": "在 Scene Builder 中打开",
     "command.openInSceneBuilder.category": "JavaFX",
+    "command.setSceneBuilderPath.title": "设置 Scene Builder 路径",
+    "command.setSceneBuilderPath.category": "JavaFX",
     "config.title": "JavaFX 支持",
     "config.sceneBuilderPath.description": "Scene Builder 可执行文件的路径。如果为空，扩展将尝试自动查找。"
 }
