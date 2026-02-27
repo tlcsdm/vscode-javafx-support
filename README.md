@@ -29,6 +29,9 @@ A VS Code extension for JavaFX development with FXML support.
 4. Click the `...` menu and select "Install from VSIX..."
 5. Select the downloaded `.vsix` file
 
+### From Jenkins  
+Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-javafx-support/)
+
 ## Usage
 
 ### FXML Syntax Highlighting
@@ -79,14 +82,17 @@ npm install
 # Compile
 npm run compile
 
-# Watch for changes
+# Watch mode (for development)
 npm run watch
-
-# Run tests
-npm run test
 
 # Lint
 npm run lint
+
+# Package
+npx @vscode/vsce package
+
+# Test
+npm run test
 
 # Package extension
 npx @vscode/vsce package
