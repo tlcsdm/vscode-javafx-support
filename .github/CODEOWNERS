@@ -18,6 +18,7 @@ src/**                        @unknowIfGuestInDream
 
 # Config files
 package.json                  @unknowIfGuestInDream
+package-lock.json             @unknowIfGuestInDream
 tsconfig.json                 @unknowIfGuestInDream
 eslint.config.mjs             @unknowIfGuestInDream
 
