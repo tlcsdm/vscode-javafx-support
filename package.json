@@ -39,7 +39,11 @@
         "id": "xml",
         "extensions": [
           ".fxml"
-        ]
+        ],
+        "icon": {
+          "light": "./images/fxml-light.svg",
+          "dark": "./images/fxml-dark.svg"
+        }
       }
     ],
     "commands": [
