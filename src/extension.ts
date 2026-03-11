@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
         )
     );
 
-    const fxmlSelector: vscode.DocumentSelector = { language: 'xml', scheme: 'file', pattern: '**/*.fxml' };
+    const fxmlSelector: vscode.DocumentSelector = { language: 'xml', pattern: '**/*.fxml' };
 
     // Register FXML → Controller definition provider
     context.subscriptions.push(

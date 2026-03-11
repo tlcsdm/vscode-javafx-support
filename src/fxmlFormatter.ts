@@ -11,6 +11,9 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
         options: vscode.FormattingOptions,
         _token: vscode.CancellationToken
     ): vscode.TextEdit[] {
+        if (!document.fileName.endsWith('.fxml')) {
+            return [];
+        }
         const range = new vscode.Range(
             document.positionAt(0),
             document.positionAt(document.getText().length)
@@ -24,6 +27,9 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
         options: vscode.FormattingOptions,
         _token: vscode.CancellationToken
     ): vscode.TextEdit[] {
+        if (!document.fileName.endsWith('.fxml')) {
+            return [];
+        }
         return this.formatRange(document, range, options);
     }
 

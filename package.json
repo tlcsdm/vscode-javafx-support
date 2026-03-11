@@ -30,7 +30,8 @@
   ],
   "activationEvents": [
     "onLanguage:xml",
-    "onLanguage:java"
+    "onLanguage:java",
+    "workspaceContains:**/*.fxml"
   ],
   "main": "./out/extension.js",
   "contributes": {

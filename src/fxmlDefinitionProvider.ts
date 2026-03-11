@@ -13,6 +13,9 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         position: vscode.Position,
         _token: vscode.CancellationToken
     ): Promise<vscode.Definition | undefined> {
+        if (!document.fileName.endsWith('.fxml')) {
+            return undefined;
+        }
         const line = document.lineAt(position).text;
 
         // Check if clicking on fx:controller
