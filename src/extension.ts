@@ -4,6 +4,7 @@ import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
 import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
 import { FxmlFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
+import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
 
 /**
  * Extension activation
@@ -63,6 +64,14 @@ export function activate(context: vscode.ExtensionContext): void {
             (controllerClassName: string, memberName: string, isMethod: boolean) => {
                 goToFxmlCommand(controllerClassName, memberName, isMethod);
             }
+        )
+    );
+
+    // Register FXML document symbol provider (Outline view)
+    context.subscriptions.push(
+        vscode.languages.registerDocumentSymbolProvider(
+            fxmlSelector,
+            new FxmlDocumentSymbolProvider()
         )
     );
 
