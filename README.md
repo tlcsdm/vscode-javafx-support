@@ -4,6 +4,7 @@ A VS Code extension for JavaFX development with FXML support.
 
 ## Features
 
+- 🎨 **FXML Syntax Highlighting** - Enhanced highlighting for FXML-specific constructs (`fx:controller`, `fx:id`, `<?import>`, event handlers) injected into standard XML mode
 - 🔧 **Scene Builder Integration** - Configure Scene Builder path and open FXML files directly in Scene Builder
 - 📐 **FXML Formatter** - XML formatter specifically designed for FXML files
 - 🔗 **FXML → Controller Navigation** - Ctrl+Click on `fx:controller`, `onAction`, or `fx:id` in FXML to jump to the corresponding code in the Controller class
@@ -35,7 +36,7 @@ Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-
 
 ### FXML File Support
 
-`.fxml` files are associated with standard XML mode. Syntax highlighting is provided natively by VS Code's built-in XML support. For enhanced features (outline, validation, auto-completion), install [XML by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-xml).
+`.fxml` files are associated with standard XML mode. FXML-specific syntax highlighting (`fx:controller`, `fx:id`, `<?import>`, event handlers) is provided via grammar injection. For enhanced features (outline, validation, auto-completion), install [XML by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-xml).
 
 ### Open in Scene Builder
 

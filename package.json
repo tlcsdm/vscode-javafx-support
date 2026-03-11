@@ -46,6 +46,15 @@
         }
       }
     ],
+    "grammars": [
+      {
+        "scopeName": "fxml.injection",
+        "path": "./syntaxes/fxml.tmLanguage.json",
+        "injectTo": [
+          "text.xml"
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "tlcsdm.javafxSupport.openInSceneBuilder",
