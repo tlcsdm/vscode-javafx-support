@@ -112,11 +112,15 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         column: number
     ): vscode.Position {
         let l = line;
-        const c = column;
+        const startColumn = column;
 
         while (l >= 0) {
             const lineText = document.lineAt(l).text;
-            const start = l === line ? Math.min(c, lineText.length - 1) : lineText.length - 1;
+            if (lineText.length === 0) {
+                l--;
+                continue;
+            }
+            const start = l === line ? Math.min(startColumn, lineText.length - 1) : lineText.length - 1;
 
             for (let i = start; i >= 0; i--) {
                 if (lineText[i] === '<') {
