@@ -2,7 +2,7 @@
   "name": "tlcsdm-javafx-support",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "unknowIfGuestInDream",
   "icon": "images/icon.png",
   "repository": {
