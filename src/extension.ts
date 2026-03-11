@@ -4,6 +4,7 @@ import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
 import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
 import { FxmlFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
+import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
 
 /**
  * Extension activation
@@ -29,7 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
         )
     );
 
-    const fxmlSelector: vscode.DocumentSelector = { language: 'xml', scheme: 'file', pattern: '**/*.fxml' };
+    const fxmlSelector: vscode.DocumentSelector = { language: 'fxml', scheme: 'file' };
 
     // Register FXML → Controller definition provider
     context.subscriptions.push(
@@ -77,6 +78,14 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentRangeFormattingEditProvider(
             fxmlSelector,
             new FxmlFormattingEditProvider()
+        )
+    );
+
+    // Register FXML document symbol provider for outline view
+    context.subscriptions.push(
+        vscode.languages.registerDocumentSymbolProvider(
+            fxmlSelector,
+            new FxmlDocumentSymbolProvider()
         )
     );
 }
