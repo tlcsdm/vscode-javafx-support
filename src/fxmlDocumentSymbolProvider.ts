@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 
 /** Parsed XML token types */
-const enum TokenType {
-    ProcessingInstruction,
-    OpenTag,
-    CloseTag,
-    SelfCloseTag,
-}
+const TOKEN_PI = 'pi';
+const TOKEN_OPEN = 'open';
+const TOKEN_CLOSE = 'close';
+const TOKEN_SELF_CLOSE = 'selfclose';
+
+type TokenType = typeof TOKEN_PI | typeof TOKEN_OPEN | typeof TOKEN_CLOSE | typeof TOKEN_SELF_CLOSE;
 
 interface XmlToken {
     type: TokenType;
@@ -26,14 +26,27 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
     provideDocumentSymbols(
         document: vscode.TextDocument,
         _token: vscode.CancellationToken
-    ): vscode.DocumentSymbol[] {
+    ): vscode.ProviderResult<vscode.DocumentSymbol[]> {
+        try {
+            return this.parseDocument(document);
+        } catch (e) {
+            console.error('[JavaFX] Error parsing FXML document symbols:', e);
+            return [];
+        }
+    }
+
+    private parseDocument(document: vscode.TextDocument): vscode.DocumentSymbol[] {
         const text = document.getText();
+        if (!text || text.trim().length === 0) {
+            return [];
+        }
+
         const tokens = this.tokenize(text);
         const symbols: vscode.DocumentSymbol[] = [];
         const stack: { symbol: vscode.DocumentSymbol; tagName: string }[] = [];
 
         for (const token of tokens) {
-            if (token.type === TokenType.ProcessingInstruction) {
+            if (token.type === TOKEN_PI) {
                 const name = this.getProcessingInstructionName(token.name);
                 const detail = this.getProcessingInstructionDetail(token.name, token.attributes);
                 const startPos = document.positionAt(token.start);
@@ -51,7 +64,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
                 } else {
                     symbols.push(symbol);
                 }
-            } else if (token.type === TokenType.CloseTag) {
+            } else if (token.type === TOKEN_CLOSE) {
                 for (let i = stack.length - 1; i >= 0; i--) {
                     if (stack[i].tagName === token.name) {
                         const endPos = document.positionAt(token.end);
@@ -86,7 +99,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
                     symbols.push(symbol);
                 }
 
-                if (token.type === TokenType.OpenTag) {
+                if (token.type === TOKEN_OPEN) {
                     stack.push({ symbol, tagName: token.name });
                 }
             }
@@ -127,20 +140,22 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             }
 
             // Processing instruction: <? ... ?>
-            if (text[i + 1] === '?') {
+            if (i + 1 < len && text[i + 1] === '?') {
                 const end = text.indexOf('?>', i + 2);
                 if (end >= 0) {
                     const content = text.substring(i + 2, end).trim();
                     const spaceIdx = content.search(/\s/);
                     const name = spaceIdx >= 0 ? content.substring(0, spaceIdx) : content;
                     const attrs = spaceIdx >= 0 ? content.substring(spaceIdx) : '';
-                    tokens.push({
-                        type: TokenType.ProcessingInstruction,
-                        name,
-                        attributes: attrs,
-                        start,
-                        end: end + 2,
-                    });
+                    if (name) {
+                        tokens.push({
+                            type: TOKEN_PI,
+                            name,
+                            attributes: attrs,
+                            start,
+                            end: end + 2,
+                        });
+                    }
                     i = end + 2;
                 } else {
                     i = len;
@@ -149,13 +164,13 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             }
 
             // Closing tag: </name>
-            if (text[i + 1] === '/') {
+            if (i + 1 < len && text[i + 1] === '/') {
                 const end = text.indexOf('>', i + 2);
                 if (end >= 0) {
                     const name = text.substring(i + 2, end).trim();
                     if (name) {
                         tokens.push({
-                            type: TokenType.CloseTag,
+                            type: TOKEN_CLOSE,
                             name,
                             attributes: '',
                             start,
@@ -173,7 +188,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             i++; // skip '<'
             // Read tag name
             const nameStart = i;
-            while (i < len && !this.isWhitespace(text[i]) && text[i] !== '>' && text[i] !== '/') {
+            while (i < len && !isWhitespace(text[i]) && text[i] !== '>' && text[i] !== '/') {
                 i++;
             }
             const tagName = text.substring(nameStart, i);
@@ -211,7 +226,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
 
             const attributes = text.substring(attrStart, selfClosing ? i - 2 : i - 1);
             tokens.push({
-                type: selfClosing ? TokenType.SelfCloseTag : TokenType.OpenTag,
+                type: selfClosing ? TOKEN_SELF_CLOSE : TOKEN_OPEN,
                 name: tagName,
                 attributes,
                 start,
@@ -220,10 +235,6 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         }
 
         return tokens;
-    }
-
-    private isWhitespace(ch: string): boolean {
-        return /\s/.test(ch);
     }
 
     /**
@@ -298,4 +309,8 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         // Default: treat as a class/object (JavaFX control)
         return vscode.SymbolKind.Object;
     }
+}
+
+function isWhitespace(ch: string): boolean {
+    return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
 }

@@ -84,8 +84,9 @@ export function activate(context: vscode.ExtensionContext): void {
     // Register FXML Document Symbol provider for Outline view
     context.subscriptions.push(
         vscode.languages.registerDocumentSymbolProvider(
-            { language: 'fxml' },
-            new FxmlDocumentSymbolProvider()
+            [{ language: 'fxml' }, { pattern: '**/*.fxml' }],
+            new FxmlDocumentSymbolProvider(),
+            { label: 'FXML' }
         )
     );
 }
