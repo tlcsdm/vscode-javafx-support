@@ -4,12 +4,11 @@ A VS Code extension for JavaFX development with FXML support.
 
 ## Features
 
-- 🎨 **FXML Syntax Highlighting** - Full syntax highlighting for `.fxml` files
-- 🏗️ **FXML Language Mode** - To open `.fxml` file in Scene Builder, select 'Open in Scene Builder' from the context menu
 - 🔧 **Scene Builder Integration** - Configure Scene Builder path and open FXML files directly in Scene Builder
-- 📐 **Formatter** - You can use an XML formatter specifically designed for FXML
+- 📐 **FXML Formatter** - XML formatter specifically designed for FXML files
 - 🔗 **FXML → Controller Navigation** - Ctrl+Click on `fx:controller`, `onAction`, or `fx:id` in FXML to jump to the corresponding code in the Controller class
 - 🔗 **Controller → FXML Navigation** - Ctrl+Click on `@FXML` annotated variables or methods in the Controller class to jump to the corresponding location in the FXML file
+- 📝 **Outline Support** - `.fxml` files use standard XML mode, so XML extensions (e.g., [XML by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-xml)) provide full outline/document symbol support
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
 ## Installation
@@ -36,7 +35,7 @@ Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-
 
 ### FXML Syntax Highlighting
 
-Open any `.fxml` file and it will automatically use the FXML language mode with syntax highlighting.
+`.fxml` files are associated with standard XML mode. Syntax highlighting is provided natively by VS Code's built-in XML support. For enhanced features (outline, validation, auto-completion), install [XML by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-xml).
 
 ### Open in Scene Builder
 
