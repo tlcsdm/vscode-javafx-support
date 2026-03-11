@@ -33,7 +33,7 @@ Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-
 
 ## Usage
 
-### FXML Syntax Highlighting
+### FXML File Support
 
 `.fxml` files are associated with standard XML mode. Syntax highlighting is provided natively by VS Code's built-in XML support. For enhanced features (outline, validation, auto-completion), install [XML by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-xml).
 
