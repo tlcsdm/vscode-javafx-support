@@ -5,6 +5,7 @@ src/**
 .gitignore
 .eslintrc.json
 eslint.config.mjs
+esbuild.mjs
 tsconfig.json
 *.vsix
 **/*.ts
@@ -14,3 +15,4 @@ tsconfig.json
 !README.md
 !CHANGELOG.md
 node_modules/**
+out/**
