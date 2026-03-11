@@ -61,8 +61,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
                             stack[i].symbol.range.start,
                             endPos
                         );
-                        stack.splice(i + 1);
-                        stack.splice(i, 1);
+                        stack.splice(i);
                         break;
                     }
                 }
@@ -118,8 +117,8 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             details.push(`fx:id="${fxIdMatch[1]}"`);
         }
 
-        const idMatch = attributes.match(/(?<!\w:)id\s*=\s*"([^"]*)"/);
-        if (idMatch) {
+        const idMatch = attributes.match(/(?:^|\s)id\s*=\s*"([^"]*)"/);
+        if (idMatch && !fxIdMatch) {
             details.push(`id="${idMatch[1]}"`);
         }
 
