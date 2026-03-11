@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.0.1] - 2026-03-11
+
+### Added
+- Support for displaying FXML files in the Outline view
+
 ## [1.0.0] - 2026-02-26
 
 ### Added
