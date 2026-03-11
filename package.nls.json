@@ -6,5 +6,7 @@
     "command.setSceneBuilderPath.title": "Set Scene Builder Path",
     "command.setSceneBuilderPath.category": "JavaFX",
     "config.title": "JavaFX Support",
-    "config.sceneBuilderPath.description": "Path to Scene Builder executable. If empty, the extension will try to find it automatically."
+    "config.sceneBuilderPath.description": "Path to Scene Builder executable. If empty, the extension will try to find it automatically.",
+    "config.outline.showFxId.description": "Show fx:id attribute in the FXML Outline view.",
+    "config.outline.showText.description": "Show text attribute in the FXML Outline view."
 }

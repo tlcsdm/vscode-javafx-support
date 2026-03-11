@@ -6,5 +6,7 @@
     "command.setSceneBuilderPath.title": "设置 Scene Builder 路径",
     "command.setSceneBuilderPath.category": "JavaFX",
     "config.title": "JavaFX 支持",
-    "config.sceneBuilderPath.description": "Scene Builder 可执行文件的路径。如果为空，扩展将尝试自动查找。"
+    "config.sceneBuilderPath.description": "Scene Builder 可执行文件的路径。如果为空，扩展将尝试自动查找。",
+    "config.outline.showFxId.description": "在 FXML 大纲视图中显示 fx:id 属性。",
+    "config.outline.showText.description": "在 FXML 大纲视图中显示 text 属性。"
 }

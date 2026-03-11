@@ -93,6 +93,16 @@
           "type": "string",
           "default": "",
           "description": "%config.sceneBuilderPath.description%"
+        },
+        "tlcsdm.javafxSupport.outline.showFxId": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.outline.showFxId.description%"
+        },
+        "tlcsdm.javafxSupport.outline.showText": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.outline.showText.description%"
         }
       }
     }

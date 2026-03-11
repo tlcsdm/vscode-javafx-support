@@ -12,8 +12,8 @@ interface SymbolNode {
  *
  * Parses the FXML document using a SAX stream parser (`saxes`) and builds a
  * hierarchical tree of `vscode.DocumentSymbol` objects. Each XML element
- * becomes a symbol whose name is the tag name (with an `fx:id` detail when
- * present).
+ * becomes a symbol whose name is the tag name with optional `fx:id` and
+ * `text` attribute details controlled by configuration settings.
  */
 export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     provideDocumentSymbols(
@@ -22,6 +22,10 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
     ): vscode.DocumentSymbol[] {
         const text = document.getText();
         const parser = new SaxesParser({ xmlns: false, position: true });
+
+        const config = vscode.workspace.getConfiguration('tlcsdm.javafxSupport');
+        const showFxId = config.get<boolean>('outline.showFxId', true);
+        const showText = config.get<boolean>('outline.showText', true);
 
         const roots: SymbolNode[] = [];
         const stack: SymbolNode[] = [];
@@ -37,11 +41,17 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const tagStartPos = this.findTagStart(document, line, column);
 
             const name = typeof tag === 'string' ? tag : tag.name;
-            const fxId = (typeof tag !== 'string' && tag.attributes['fx:id']) ?
-                String(tag.attributes['fx:id']) : undefined;
+            const attrs = typeof tag !== 'string' ? tag.attributes : {};
 
-            const displayName = fxId ? `${name}#${fxId}` : name;
-            const detail = fxId ? `fx:id="${fxId}"` : '';
+            // Build detail string from fx:id and text attributes
+            const detailParts: string[] = [];
+            if (showFxId && attrs['fx:id']) {
+                detailParts.push(`fx:id="${attrs['fx:id']}"`);
+            }
+            if (showText && attrs['text']) {
+                detailParts.push(`text="${attrs['text']}"`);
+            }
+            const detail = detailParts.join(' ');
 
             // Temporary range – the end will be updated when we see the
             // corresponding close tag.
@@ -50,9 +60,9 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const range = new vscode.Range(startPos, new vscode.Position(line, column));
 
             const symbol = new vscode.DocumentSymbol(
-                displayName,
+                name,
                 detail,
-                vscode.SymbolKind.Object,
+                vscode.SymbolKind.Field,
                 range,
                 selectionRange
             );
