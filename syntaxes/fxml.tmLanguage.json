@@ -18,17 +18,17 @@
         "xmlProcessingInstruction": {
             "begin": "<\\?",
             "end": "\\?>",
-            "name": "meta.tag.preprocessor.xml.fxml",
+            "name": "meta.tag.preprocessor.fxml",
             "beginCaptures": {
-                "0": { "name": "punctuation.definition.tag.begin.xml.fxml" }
+                "0": { "name": "punctuation.definition.tag.begin.fxml" }
             },
             "endCaptures": {
-                "0": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "0": { "name": "punctuation.definition.tag.end.fxml" }
             },
             "patterns": [
                 {
                     "match": "\\b(xml|language)\\b",
-                    "name": "entity.name.tag.xml.fxml"
+                    "name": "entity.name.tag.fxml"
                 },
                 { "include": "#attribute" }
             ]
@@ -36,32 +36,32 @@
         "fxmlImport": {
             "match": "(<\\?)(import)\\s+([\\w\\.]+)(\\*?)\\s*(\\?>)",
             "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
                 "2": { "name": "keyword.control.import.fxml" },
                 "3": { "name": "entity.name.type.import.fxml" },
                 "4": { "name": "keyword.operator.wildcard.fxml" },
-                "5": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "5": { "name": "punctuation.definition.tag.end.fxml" }
             }
         },
         "comment": {
             "begin": "<!--",
             "end": "-->",
-            "name": "comment.block.xml.fxml"
+            "name": "comment.block.fxml"
         },
         "cdata": {
             "begin": "<!\\[CDATA\\[",
             "end": "\\]\\]>",
-            "name": "string.unquoted.cdata.xml.fxml"
+            "name": "string.unquoted.cdata.fxml"
         },
         "fxTag": {
             "begin": "(<)(fx:(?:include|define|copy|root|script|reference))",
             "end": "(/?>)",
             "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
                 "2": { "name": "keyword.control.fxml" }
             },
             "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "1": { "name": "punctuation.definition.tag.end.fxml" }
             },
             "patterns": [
                 { "include": "#fxAttribute" },
@@ -72,21 +72,21 @@
         "closeFxTag": {
             "match": "(</)(fx:(?:include|define|copy|root|script|reference))(>)",
             "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
                 "2": { "name": "keyword.control.fxml" },
-                "3": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "3": { "name": "punctuation.definition.tag.end.fxml" }
             }
         },
         "classTag": {
             "begin": "(<)(([\\w\\.]+:)?([A-Z][\\w\\.]*))",
             "end": "(/?>)",
             "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
-                "3": { "name": "entity.name.tag.namespace.xml.fxml" },
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
+                "3": { "name": "entity.name.tag.namespace.fxml" },
                 "4": { "name": "entity.name.type.class.fxml" }
             },
             "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "1": { "name": "punctuation.definition.tag.end.fxml" }
             },
             "patterns": [
                 { "include": "#fxAttribute" },
@@ -100,12 +100,12 @@
             "begin": "(<)(([\\w\\.]+:)?([a-z][\\w\\.]*))",
             "end": "(/?>)",
             "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
-                "3": { "name": "entity.name.tag.namespace.xml.fxml" },
-                "4": { "name": "entity.name.tag.localname.xml.fxml" }
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
+                "3": { "name": "entity.name.tag.namespace.fxml" },
+                "4": { "name": "entity.name.tag.fxml" }
             },
             "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "1": { "name": "punctuation.definition.tag.end.fxml" }
             },
             "patterns": [
                 { "include": "#fxAttribute" },
@@ -118,35 +118,35 @@
         "closeClassTag": {
             "match": "(</)([\\w\\.]+:)?([A-Z][\\w\\.]*)(>)",
             "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
-                "2": { "name": "entity.name.tag.namespace.xml.fxml" },
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
+                "2": { "name": "entity.name.tag.namespace.fxml" },
                 "3": { "name": "entity.name.type.class.fxml" },
-                "4": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "4": { "name": "punctuation.definition.tag.end.fxml" }
             }
         },
         "closePropertyTag": {
             "match": "(</)([\\w\\.]+:)?([a-z][\\w\\.]*)(>)",
             "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.xml.fxml" },
-                "2": { "name": "entity.name.tag.namespace.xml.fxml" },
-                "3": { "name": "entity.name.tag.localname.xml.fxml" },
-                "4": { "name": "punctuation.definition.tag.end.xml.fxml" }
+                "1": { "name": "punctuation.definition.tag.begin.fxml" },
+                "2": { "name": "entity.name.tag.namespace.fxml" },
+                "3": { "name": "entity.name.tag.fxml" },
+                "4": { "name": "punctuation.definition.tag.end.fxml" }
             }
         },
         "fxAttribute": {
             "match": "(fx:\\w+)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
             "captures": {
                 "1": { "name": "keyword.control.fxml" },
-                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
-                "3": { "name": "string.quoted.double.xml.fxml" }
+                "2": { "name": "punctuation.separator.key-value.fxml" },
+                "3": { "name": "string.quoted.double.fxml" }
             }
         },
         "eventHandlerAttribute": {
             "match": "(on\\w+)\\s*(=)\\s*(\"(#[\\w]+)\"|'(#[\\w]+)')",
             "captures": {
                 "1": { "name": "support.function.event.fxml" },
-                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
-                "3": { "name": "string.quoted.double.xml.fxml" },
+                "2": { "name": "punctuation.separator.key-value.fxml" },
+                "3": { "name": "string.quoted.double.fxml" },
                 "4": { "name": "entity.name.function.event-handler.fxml" },
                 "5": { "name": "entity.name.function.event-handler.fxml" }
             }
@@ -154,25 +154,25 @@
         "xmlnsAttribute": {
             "match": "(xmlns(?::\\w+)?)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
             "captures": {
-                "1": { "name": "entity.other.attribute-name.namespace.xml.fxml" },
-                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
-                "3": { "name": "string.quoted.double.xml.fxml" }
+                "1": { "name": "entity.other.attribute-name.namespace.fxml" },
+                "2": { "name": "punctuation.separator.key-value.fxml" },
+                "3": { "name": "string.quoted.double.fxml" }
             }
         },
         "staticPropertyAttribute": {
             "match": "([A-Z][\\w]*\\.[\\w]+)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
             "captures": {
-                "1": { "name": "entity.other.attribute-name.xml.fxml" },
-                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
-                "3": { "name": "string.quoted.double.xml.fxml" }
+                "1": { "name": "entity.other.attribute-name.fxml" },
+                "2": { "name": "punctuation.separator.key-value.fxml" },
+                "3": { "name": "string.quoted.double.fxml" }
             }
         },
         "attribute": {
             "match": "([\\w\\-\\.]+(?::[\\w\\-\\.]+)?)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
             "captures": {
-                "1": { "name": "entity.other.attribute-name.xml.fxml" },
-                "2": { "name": "punctuation.separator.key-value.xml.fxml" },
-                "3": { "name": "string.quoted.double.xml.fxml" }
+                "1": { "name": "entity.other.attribute-name.fxml" },
+                "2": { "name": "punctuation.separator.key-value.fxml" },
+                "3": { "name": "string.quoted.double.fxml" }
             }
         }
     }
