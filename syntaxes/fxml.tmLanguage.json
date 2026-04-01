@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "FXML",
-    "scopeName": "text.xml.fxml",
+    "scopeName": "source.fxml",
     "patterns": [
         { "include": "#fxmlImport" },
         { "include": "#xmlProcessingInstruction" },

@@ -54,7 +54,7 @@
     "grammars": [
       {
         "language": "fxml",
-        "scopeName": "text.xml.fxml",
+        "scopeName": "source.fxml",
         "path": "./syntaxes/fxml.tmLanguage.json"
       }
     ],
@@ -85,11 +85,6 @@
           "group": "z_commands"
         }
       ]
-    },
-    "configurationDefaults": {
-      "[fxml]": {
-        "editor.semanticHighlighting.enabled": false
-      }
     },
     "configuration": {
       "title": "%config.title%",
