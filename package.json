@@ -86,6 +86,11 @@
         }
       ]
     },
+    "configurationDefaults": {
+      "[fxml]": {
+        "editor.semanticHighlighting.enabled": false
+      }
+    },
     "configuration": {
       "title": "%config.title%",
       "properties": {
