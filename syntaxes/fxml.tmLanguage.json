@@ -5,89 +5,47 @@
         "fxml"
     ],
     "patterns": [
-        {
-            "include": "#xml-decl"
-        },
-        {
-            "include": "#language-decl"
-        },
-        {
-            "include": "#import"
-        },
-        {
-            "include": "#comments"
-        },
-        {
-            "include": "#cdata"
-        },
-        {
-            "include": "#fx-attr"
-        },
-        {
-            "include": "#event-handler-attr"
-        },
-        {
-            "include": "#generic-attr"
-        },
-        {
-            "include": "#property-tag"
-        },
-        {
-            "include": "#generic-tags"
-        }
+        { "include": "#xml-decl" },
+        { "include": "#language-decl" },
+        { "include": "#import" },
+        { "include": "#comments" },
+        { "include": "#cdata" },
+        { "include": "#fx-attr" },
+        { "include": "#event-handler-attr" },
+        { "include": "#generic-attr" },
+        { "include": "#fx-tag" },
+        { "include": "#class-tag" },
+        { "include": "#property-tag" },
+        { "include": "#tag-punctuation" }
     ],
     "repository": {
         "xml-decl": {
-            "patterns": [
-                {
-                    "begin": "<\\?xml",
-                    "end": "\\?>",
-                    "name": "comment"
-                }
-            ]
+            "begin": "<\\?xml\\b",
+            "end": "\\?>",
+            "name": "comment"
         },
         "language-decl": {
-            "patterns": [
-                {
-                    "begin": "<\\?language",
-                    "end": "\\?>",
-                    "name": "comment"
-                }
-            ]
+            "begin": "<\\?language\\b",
+            "end": "\\?>",
+            "name": "comment"
         },
         "import": {
             "patterns": [
                 {
-                    "match": "(<\\?import\\s+)([a-zA-Z][a-zA-Z0-9.]+?)(\\*?)(\\?>)",
+                    "match": "(<\\?import)\\s+([a-zA-Z][a-zA-Z0-9.]*)(\\*?)(\\s*\\?>)",
                     "captures": {
-                        "1": {
-                            "name": "comment"
-                        },
-                        "2": {
-                            "name": "keyword"
-                        },
-                        "3": {
-                            "name": "keyword"
-                        },
-                        "4": {
-                            "name": "comment"
-                        }
+                        "1": { "name": "comment" },
+                        "2": { "name": "keyword" },
+                        "3": { "name": "keyword" },
+                        "4": { "name": "comment" }
                     }
                 }
             ]
         },
         "comments": {
-            "patterns": [
-                {
-                    "match": "<!--.*?-->",
-                    "name": "comment"
-                },
-                {
-                    "begin": "<!--",
-                    "end": "-->",
-                    "name": "comment"
-                }
-            ]
+            "begin": "<!--",
+            "end": "-->",
+            "name": "comment"
         },
         "cdata": {
             "begin": "<!\\[CDATA\\[",
@@ -97,17 +55,11 @@
         "fx-attr": {
             "patterns": [
                 {
-                    "match": "(fx:[a-zA-Z0-9]+)\\s*?(=)\\s*?(\"[^\"]*\")",
+                    "match": "(fx:[a-zA-Z0-9]+)(\\s*=\\s*)(\"[^\"]*\")",
                     "captures": {
-                        "1": {
-                            "name": "keyword"
-                        },
-                        "2": {
-                            "name": "comment"
-                        },
-                        "3": {
-                            "name": "string"
-                        }
+                        "1": { "name": "keyword" },
+                        "2": { "name": "comment" },
+                        "3": { "name": "string" }
                     }
                 }
             ]
@@ -115,17 +67,11 @@
         "event-handler-attr": {
             "patterns": [
                 {
-                    "match": "(on[A-Z][a-zA-Z0-9]*)\\s*?(=)\\s*?(\"[^\"]*\")",
+                    "match": "(on[A-Z][a-zA-Z0-9]*)(\\s*=\\s*)(\"[^\"]*\")",
                     "captures": {
-                        "1": {
-                            "name": "support.function"
-                        },
-                        "2": {
-                            "name": "comment"
-                        },
-                        "3": {
-                            "name": "string"
-                        }
+                        "1": { "name": "support.function" },
+                        "2": { "name": "comment" },
+                        "3": { "name": "string" }
                     }
                 }
             ]
@@ -133,17 +79,33 @@
         "generic-attr": {
             "patterns": [
                 {
-                    "match": "([a-zA-Z0-9:.]+)\\s*?(=)\\s*?(\"[^\"]*\")",
+                    "match": "([a-zA-Z][a-zA-Z0-9:.]*)(\\s*=\\s*)(\"[^\"]*\")",
                     "captures": {
-                        "1": {
-                            "name": "variable"
-                        },
-                        "2": {
-                            "name": "comment"
-                        },
-                        "3": {
-                            "name": "string"
-                        }
+                        "1": { "name": "variable" },
+                        "2": { "name": "comment" },
+                        "3": { "name": "string" }
+                    }
+                }
+            ]
+        },
+        "fx-tag": {
+            "patterns": [
+                {
+                    "match": "(</?)(fx:[a-zA-Z]+)",
+                    "captures": {
+                        "1": { "name": "comment" },
+                        "2": { "name": "keyword" }
+                    }
+                }
+            ]
+        },
+        "class-tag": {
+            "patterns": [
+                {
+                    "match": "(</?)(([A-Z][A-Za-z0-9]*\\.)*[A-Z][A-Za-z0-9]*)",
+                    "captures": {
+                        "1": { "name": "comment" },
+                        "2": { "name": "entity.name.type" }
                     }
                 }
             ]
@@ -151,51 +113,19 @@
         "property-tag": {
             "patterns": [
                 {
-                    "match": "(<)(/?)([a-z][a-zA-Z0-9:._-]+?\\b[^>]*>)",
+                    "match": "(</?)(([A-Z][A-Za-z0-9]*\\.)*[a-z][a-zA-Z0-9]*)",
                     "captures": {
-                        "1": {
-                            "name": "comment"
-                        },
-                        "2": {
-                            "name": "comment"
-                        },
-                        "3": {
-                            "name": "entity.name.tag"
-                        }
+                        "1": { "name": "comment" },
+                        "2": { "name": "entity.name.tag" }
                     }
                 }
             ]
         },
-        "generic-tags": {
+        "tag-punctuation": {
             "patterns": [
                 {
-                    "match": "(<)(/?)([A-Za-z][A-Za-z0-9:._-]+?/?>)",
-                    "captures": {
-                        "1": {
-                            "name": "comment"
-                        },
-                        "2": {
-                            "name": "comment"
-                        },
-                        "3": {
-                            "name": "entity.name.type"
-                        }
-                    }
-                },
-                {
-                    "match": "<[A-Z][A-Za-z0-9:._-]+?\\s",
-                    "name": "entity.name.type"
-                },
-                {
-                    "match": "(/?)(>)",
-                    "captures": {
-                        "1": {
-                            "name": "comment"
-                        },
-                        "2": {
-                            "name": "comment"
-                        }
-                    }
+                    "match": "/?>",
+                    "name": "comment"
                 }
             ]
         }
