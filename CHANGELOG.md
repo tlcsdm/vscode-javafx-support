@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [1.0.3] - 2026-04-02
 
 ### Fixed
 - Rewrote FXML syntax highlighting grammar to prevent XML grammar override
