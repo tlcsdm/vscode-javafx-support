@@ -30,7 +30,8 @@
   ],
   "activationEvents": [
     "onLanguage:fxml",
-    "onLanguage:java"
+    "onLanguage:java",
+    "onLanguage:xml"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -54,7 +55,7 @@
     "grammars": [
       {
         "language": "fxml",
-        "scopeName": "text.xml.fxml",
+        "scopeName": "source.fxml",
         "path": "./syntaxes/fxml.tmLanguage.json"
       }
     ],
@@ -85,6 +86,14 @@
           "group": "z_commands"
         }
       ]
+    },
+    "configurationDefaults": {
+      "[fxml]": {
+        "editor.semanticHighlighting.enabled": false
+      },
+      "files.associations": {
+        "*.fxml": "fxml"
+      }
     },
     "configuration": {
       "title": "%config.title%",

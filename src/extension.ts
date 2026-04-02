@@ -88,6 +88,23 @@ export function activate(context: vscode.ExtensionContext): void {
             new FxmlFormattingEditProvider()
         )
     );
+
+    // Ensure .fxml files use the fxml language (prevent XML extension override)
+    const ensureFxmlLanguage = (document: vscode.TextDocument) => {
+        if (document.fileName.endsWith('.fxml') && document.languageId !== 'fxml') {
+            vscode.languages.setTextDocumentLanguage(document, 'fxml');
+        }
+    };
+
+    // Check already open documents
+    for (const document of vscode.workspace.textDocuments) {
+        ensureFxmlLanguage(document);
+    }
+
+    // Watch for newly opened documents
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument(ensureFxmlLanguage)
+    );
 }
 
 /**

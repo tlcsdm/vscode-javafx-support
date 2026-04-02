@@ -1,5 +1,25 @@
 # Change Log
 
+## [1.0.3] - 2026-04-02
+
+### Fixed
+- Rewrote FXML syntax highlighting grammar to prevent XML grammar override
+- Changed scopeName from `text.xml.fxml` to `source.fxml` to block XML extension injection
+- Fixed dark theme appearance: brackets use `punctuation.definition.tag` (gray) instead of `comment` (green)
+- Added proper color distinction for FXML elements in both light and dark themes:
+  - Class tags (`BorderPane`, `VBox`) — teal
+  - Property tags (`top`, `padding`) — blue
+  - `fx:*` tags and attributes — purple
+  - Event handlers (`onAction`) — yellow
+  - Regular attributes — light blue
+  - String values — orange
+  - XML comments — green
+- Added `files.associations` and `editor.semanticHighlighting.enabled: false` for FXML to prevent XML semantic token overrides
+- Added programmatic language enforcement to correct `.fxml` files misdetected as XML
+
+### Changed
+- Updated language configuration with improved auto-closing pairs, surrounding pairs, and indentation rules
+
 ## [1.0.1] - 2026-03-11
 
 ### Added
