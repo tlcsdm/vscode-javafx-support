@@ -1,179 +1,298 @@
 {
-    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "FXML",
-    "scopeName": "source.fxml",
+    "scopeName": "text.xml.fxml",
+    "fileTypes": [
+        "fxml"
+    ],
     "patterns": [
-        { "include": "#fxmlImport" },
-        { "include": "#xmlProcessingInstruction" },
-        { "include": "#comment" },
-        { "include": "#cdata" },
-        { "include": "#closeFxTag" },
-        { "include": "#closeClassTag" },
-        { "include": "#closePropertyTag" },
-        { "include": "#fxTag" },
-        { "include": "#classTag" },
-        { "include": "#propertyTag" }
+        {
+            "include": "#xml-decl"
+        },
+        {
+            "include": "#language-decl"
+        },
+        {
+            "include": "#import"
+        },
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#cdata"
+        },
+        {
+            "include": "#fx-tag"
+        },
+        {
+            "include": "#class-tag"
+        },
+        {
+            "include": "#close-class-tag"
+        },
+        {
+            "include": "#property-tag"
+        },
+        {
+            "include": "#close-property-tag"
+        }
     ],
     "repository": {
-        "xmlProcessingInstruction": {
-            "begin": "<\\?",
-            "end": "\\?>",
-            "name": "meta.tag.preprocessor.fxml",
-            "beginCaptures": {
-                "0": { "name": "punctuation.definition.tag.begin.fxml" }
-            },
-            "endCaptures": {
-                "0": { "name": "punctuation.definition.tag.end.fxml" }
-            },
+        "xml-decl": {
             "patterns": [
                 {
-                    "match": "\\b(xml|language)\\b",
-                    "name": "entity.name.tag.fxml"
-                },
-                { "include": "#attribute" }
+                    "begin": "<\\?xml",
+                    "end": "\\?>",
+                    "name": "comment"
+                }
             ]
         },
-        "fxmlImport": {
-            "match": "(<\\?)(import)\\s+([\\w\\.]+)(\\*?)\\s*(\\?>)",
-            "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "2": { "name": "keyword.control.import.fxml" },
-                "3": { "name": "entity.name.type.import.fxml" },
-                "4": { "name": "keyword.operator.wildcard.fxml" },
-                "5": { "name": "punctuation.definition.tag.end.fxml" }
-            }
+        "language-decl": {
+            "patterns": [
+                {
+                    "begin": "<\\?language",
+                    "end": "\\?>",
+                    "name": "comment"
+                }
+            ]
         },
-        "comment": {
-            "begin": "<!--",
-            "end": "-->",
-            "name": "comment.block.fxml"
+        "import": {
+            "patterns": [
+                {
+                    "match": "(<\\?import\\s+)([a-zA-Z][a-zA-Z0-9.]+?)(\\*?)(\\?>)",
+                    "captures": {
+                        "1": {
+                            "name": "variable"
+                        },
+                        "2": {
+                            "name": "keyword"
+                        },
+                        "3": {
+                            "name": "storage.type.java"
+                        },
+                        "4": {
+                            "name": "variable"
+                        }
+                    }
+                }
+            ]
+        },
+        "comments": {
+            "patterns": [
+                {
+                    "begin": "<!--",
+                    "end": "-->",
+                    "name": "comment"
+                }
+            ]
         },
         "cdata": {
-            "begin": "<!\\[CDATA\\[",
-            "end": "\\]\\]>",
-            "name": "string.unquoted.cdata.fxml"
-        },
-        "fxTag": {
-            "begin": "(<)(fx:(?:include|define|copy|root|script|reference))",
-            "end": "(/?>)",
-            "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "2": { "name": "keyword.control.fxml" }
-            },
-            "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.fxml" }
-            },
             "patterns": [
-                { "include": "#fxAttribute" },
-                { "include": "#eventHandlerAttribute" },
-                { "include": "#attribute" }
+                {
+                    "begin": "<!\\[CDATA\\[",
+                    "end": "\\]\\]>",
+                    "name": "string"
+                }
             ]
         },
-        "closeFxTag": {
-            "match": "(</)(fx:(?:include|define|copy|root|script|reference))(>)",
-            "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "2": { "name": "keyword.control.fxml" },
-                "3": { "name": "punctuation.definition.tag.end.fxml" }
-            }
-        },
-        "classTag": {
-            "begin": "(<)(([\\w\\.]+:)?([A-Z][\\w\\.]*))",
-            "end": "(/?>)",
-            "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "3": { "name": "entity.name.tag.namespace.fxml" },
-                "4": { "name": "entity.name.type.class.fxml" }
-            },
-            "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.fxml" }
-            },
+        "fx-attr": {
             "patterns": [
-                { "include": "#fxAttribute" },
-                { "include": "#eventHandlerAttribute" },
-                { "include": "#xmlnsAttribute" },
-                { "include": "#staticPropertyAttribute" },
-                { "include": "#attribute" }
+                {
+                    "match": "(fx:\\w+)(\\s*=\\s*)(\"[^\"]*\"|'[^']*')",
+                    "captures": {
+                        "1": {
+                            "name": "keyword"
+                        },
+                        "2": {
+                            "name": "comment"
+                        },
+                        "3": {
+                            "name": "string"
+                        }
+                    }
+                }
             ]
         },
-        "propertyTag": {
-            "begin": "(<)(([\\w\\.]+:)?([a-z][\\w\\.]*))",
-            "end": "(/?>)",
-            "beginCaptures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "3": { "name": "entity.name.tag.namespace.fxml" },
-                "4": { "name": "entity.name.tag.fxml" }
-            },
-            "endCaptures": {
-                "1": { "name": "punctuation.definition.tag.end.fxml" }
-            },
+        "event-handler-attr": {
             "patterns": [
-                { "include": "#fxAttribute" },
-                { "include": "#eventHandlerAttribute" },
-                { "include": "#xmlnsAttribute" },
-                { "include": "#staticPropertyAttribute" },
-                { "include": "#attribute" }
+                {
+                    "match": "(on\\w+)(\\s*=\\s*)(\"[^\"]*\"|'[^']*')",
+                    "captures": {
+                        "1": {
+                            "name": "support.function"
+                        },
+                        "2": {
+                            "name": "comment"
+                        },
+                        "3": {
+                            "name": "string"
+                        }
+                    }
+                }
             ]
         },
-        "closeClassTag": {
-            "match": "(</)([\\w\\.]+:)?([A-Z][\\w\\.]*)(>)",
-            "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "2": { "name": "entity.name.tag.namespace.fxml" },
-                "3": { "name": "entity.name.type.class.fxml" },
-                "4": { "name": "punctuation.definition.tag.end.fxml" }
-            }
+        "generic-attr": {
+            "patterns": [
+                {
+                    "match": "([\\w\\-.:]+)(\\s*=\\s*)(\"[^\"]*\"|'[^']*')",
+                    "captures": {
+                        "1": {
+                            "name": "variable"
+                        },
+                        "2": {
+                            "name": "comment"
+                        },
+                        "3": {
+                            "name": "string"
+                        }
+                    }
+                }
+            ]
         },
-        "closePropertyTag": {
-            "match": "(</)([\\w\\.]+:)?([a-z][\\w\\.]*)(>)",
-            "captures": {
-                "1": { "name": "punctuation.definition.tag.begin.fxml" },
-                "2": { "name": "entity.name.tag.namespace.fxml" },
-                "3": { "name": "entity.name.tag.fxml" },
-                "4": { "name": "punctuation.definition.tag.end.fxml" }
-            }
+        "fx-tag": {
+            "patterns": [
+                {
+                    "begin": "(<)(fx:\\w+)",
+                    "end": "(/?>)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "keyword"
+                        }
+                    },
+                    "endCaptures": {
+                        "1": {
+                            "name": "comment"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#fx-attr"
+                        },
+                        {
+                            "include": "#event-handler-attr"
+                        },
+                        {
+                            "include": "#generic-attr"
+                        }
+                    ]
+                },
+                {
+                    "match": "(</)(fx:\\w+)(>)",
+                    "captures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "keyword"
+                        },
+                        "3": {
+                            "name": "comment"
+                        }
+                    }
+                }
+            ]
         },
-        "fxAttribute": {
-            "match": "(fx:\\w+)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
-            "captures": {
-                "1": { "name": "keyword.control.fxml" },
-                "2": { "name": "punctuation.separator.key-value.fxml" },
-                "3": { "name": "string.quoted.double.fxml" }
-            }
+        "class-tag": {
+            "patterns": [
+                {
+                    "begin": "(<)([A-Z][\\w.]*)",
+                    "end": "(/?>)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "entity.name.type"
+                        }
+                    },
+                    "endCaptures": {
+                        "1": {
+                            "name": "comment"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#fx-attr"
+                        },
+                        {
+                            "include": "#event-handler-attr"
+                        },
+                        {
+                            "include": "#generic-attr"
+                        }
+                    ]
+                }
+            ]
         },
-        "eventHandlerAttribute": {
-            "match": "(on\\w+)\\s*(=)\\s*(\"(#[\\w]+)\"|'(#[\\w]+)')",
-            "captures": {
-                "1": { "name": "support.function.event.fxml" },
-                "2": { "name": "punctuation.separator.key-value.fxml" },
-                "3": { "name": "string.quoted.double.fxml" },
-                "4": { "name": "entity.name.function.event-handler.fxml" },
-                "5": { "name": "entity.name.function.event-handler.fxml" }
-            }
+        "close-class-tag": {
+            "patterns": [
+                {
+                    "match": "(</)([A-Z][\\w.]*)(>)",
+                    "captures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "entity.name.type"
+                        },
+                        "3": {
+                            "name": "comment"
+                        }
+                    }
+                }
+            ]
         },
-        "xmlnsAttribute": {
-            "match": "(xmlns(?::\\w+)?)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
-            "captures": {
-                "1": { "name": "entity.other.attribute-name.namespace.fxml" },
-                "2": { "name": "punctuation.separator.key-value.fxml" },
-                "3": { "name": "string.quoted.double.fxml" }
-            }
+        "property-tag": {
+            "patterns": [
+                {
+                    "begin": "(<)([a-z][\\w.]*)",
+                    "end": "(/?>)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "entity.name.tag"
+                        }
+                    },
+                    "endCaptures": {
+                        "1": {
+                            "name": "comment"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#fx-attr"
+                        },
+                        {
+                            "include": "#event-handler-attr"
+                        },
+                        {
+                            "include": "#generic-attr"
+                        }
+                    ]
+                }
+            ]
         },
-        "staticPropertyAttribute": {
-            "match": "([A-Z][\\w]*\\.[\\w]+)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
-            "captures": {
-                "1": { "name": "entity.other.attribute-name.fxml" },
-                "2": { "name": "punctuation.separator.key-value.fxml" },
-                "3": { "name": "string.quoted.double.fxml" }
-            }
-        },
-        "attribute": {
-            "match": "([\\w\\-\\.]+(?::[\\w\\-\\.]+)?)\\s*(=)\\s*(\"[^\"]*\"|'[^']*')",
-            "captures": {
-                "1": { "name": "entity.other.attribute-name.fxml" },
-                "2": { "name": "punctuation.separator.key-value.fxml" },
-                "3": { "name": "string.quoted.double.fxml" }
-            }
+        "close-property-tag": {
+            "patterns": [
+                {
+                    "match": "(</)([a-z][\\w.]*)(>)",
+                    "captures": {
+                        "1": {
+                            "name": "comment"
+                        },
+                        "2": {
+                            "name": "entity.name.tag"
+                        },
+                        "3": {
+                            "name": "comment"
+                        }
+                    }
+                }
+            ]
         }
     }
 }

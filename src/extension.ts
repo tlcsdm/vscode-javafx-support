@@ -10,11 +10,6 @@ import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
  * Extension activation
  */
 export function activate(context: vscode.ExtensionContext): void {
-    // Ensure .fxml files use the fxml language mode instead of xml.
-    // VS Code's built-in XML extension registers .fxml as xml, so we
-    // need to programmatically correct any misdetected files.
-    ensureFxmlLanguage(context);
-
     // Register Open in Scene Builder command
     context.subscriptions.push(
         vscode.commands.registerCommand(
@@ -92,29 +87,6 @@ export function activate(context: vscode.ExtensionContext): void {
             fxmlSelector,
             new FxmlFormattingEditProvider()
         )
-    );
-}
-
-/**
- * Ensures .fxml files are recognized as fxml language, not xml.
- * VS Code's built-in XML extension and Red Hat XML extension both register
- * .fxml as xml, which can override this extension's language registration.
- */
-function ensureFxmlLanguage(context: vscode.ExtensionContext): void {
-    const setFxmlLanguage = (doc: vscode.TextDocument) => {
-        if (doc.fileName.toLowerCase().endsWith('.fxml') && doc.languageId !== 'fxml') {
-            vscode.languages.setTextDocumentLanguage(doc, 'fxml');
-        }
-    };
-
-    // Fix already-open .fxml files
-    for (const doc of vscode.workspace.textDocuments) {
-        setFxmlLanguage(doc);
-    }
-
-    // Fix newly-opened .fxml files
-    context.subscriptions.push(
-        vscode.workspace.onDidOpenTextDocument(setFxmlLanguage)
     );
 }
 
