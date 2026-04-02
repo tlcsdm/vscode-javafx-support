@@ -30,7 +30,8 @@
   ],
   "activationEvents": [
     "onLanguage:fxml",
-    "onLanguage:java"
+    "onLanguage:java",
+    "onLanguage:xml"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -87,6 +88,9 @@
       ]
     },
     "configurationDefaults": {
+      "files.associations": {
+        "*.fxml": "fxml"
+      },
       "[fxml]": {
         "editor.semanticHighlighting.enabled": false
       }
