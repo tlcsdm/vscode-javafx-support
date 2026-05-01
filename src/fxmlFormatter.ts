@@ -48,7 +48,11 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
         const text = document.getText(range);
         const formatted = this.formatXml(text, options, token);
 
-        if (formatted === undefined || formatted === text) {
+        if (formatted === undefined) {
+            return [];
+        }
+
+        if (formatted === text) {
             return [];
         }
 
