@@ -21,6 +21,7 @@ const NAMESPACE_TAGS = new Set([
 interface SymbolNode {
     symbol: vscode.DocumentSymbol;
     children: SymbolNode[];
+    tagName: string;
     openTagEnd?: vscode.Position;
 }
 
@@ -59,6 +60,8 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
 
             const name = typeof tag === 'string' ? tag : tag.name;
             const attrs = typeof tag !== 'string' ? tag.attributes : {};
+            const fxId = typeof attrs['fx:id'] === 'string' ? attrs['fx:id'] : undefined;
+            const symbolName = showFxId && fxId ? `${name}[${fxId}]` : name;
 
             // Build detail string from fx:id and text attributes
             const detailParts: string[] = [];
@@ -77,9 +80,9 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const range = new vscode.Range(startPos, new vscode.Position(line, column));
 
             const symbol = new vscode.DocumentSymbol(
-                name,
+                symbolName,
                 detail,
-                this.getSymbolKind(name, attrs, stack[stack.length - 1]?.symbol.name),
+                this.getSymbolKind(name, attrs, stack[stack.length - 1]?.tagName),
                 range,
                 selectionRange
             );
@@ -87,6 +90,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const node: SymbolNode = {
                 symbol,
                 children: [],
+                tagName: name,
                 openTagEnd: new vscode.Position(line, column),
             };
 
