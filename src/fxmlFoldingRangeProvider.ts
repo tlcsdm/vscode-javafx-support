@@ -5,9 +5,6 @@ interface ElementNode {
     startLine: number;
 }
 
-// Skips XML constructs that cannot contain element folds, then captures real XML/FXML tags.
-const fxmlTagPattern = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<!DOCTYPE[\s\S]*?>|<\/?([A-Za-z_][\w:.-]*)(?:\s[\s\S]*?)?>/g;
-
 /**
  * Provides folding ranges for FXML files.
  *
@@ -39,7 +36,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         for (let line = 0; line < document.lineCount; line++) {
             const lineText = document.lineAt(line).text;
-            if (/^\s*<\?import\b.*\?>\s*$/.test(lineText)) {
+            if (/^\s*<\?import\s+[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\.\*)*\s*\?>\s*$/.test(lineText)) {
                 groupStart ??= line;
                 previousImportLine = line;
                 continue;
@@ -71,17 +68,60 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         const lineStarts = this.getLineStarts(text);
         const stack: ElementNode[] = [];
 
-        for (const match of text.matchAll(fxmlTagPattern)) {
-            const tagText = match[0];
-            const tagName = match[1];
-            if (!tagName) {
+        let offset = 0;
+        while (offset < text.length) {
+            const tagStart = text.indexOf('<', offset);
+            if (tagStart === -1) {
+                return;
+            }
+
+            if (text.startsWith('<!--', tagStart)) {
+                offset = this.skipUntil(text, tagStart + 4, '-->');
                 continue;
             }
 
-            const startLine = this.offsetToLine(match.index, lineStarts);
-            const endLine = this.offsetToLine(match.index + tagText.length - 1, lineStarts);
-            const isClosingTag = tagText.startsWith('</');
-            const isSelfClosingTag = /\/\s*>$/.test(tagText);
+            if (text.startsWith('<![CDATA[', tagStart)) {
+                offset = this.skipUntil(text, tagStart + 9, ']]>');
+                continue;
+            }
+
+            if (text.startsWith('<?', tagStart)) {
+                offset = this.skipUntil(text, tagStart + 2, '?>');
+                continue;
+            }
+
+            if (text.startsWith('<!', tagStart)) {
+                const declarationEnd = this.findTagEnd(text, tagStart + 2);
+                if (declarationEnd === -1) {
+                    return;
+                }
+                offset = declarationEnd + 1;
+                continue;
+            }
+
+            const isClosingTag = text[tagStart + 1] === '/';
+            const tagNameStart = tagStart + (isClosingTag ? 2 : 1);
+            const tagNameEnd = this.readTagNameEnd(text, tagNameStart);
+            if (tagNameEnd === tagNameStart) {
+                offset = tagStart + 1;
+                continue;
+            }
+
+            const tagName = text.slice(tagNameStart, tagNameEnd);
+            const tagEnd = this.findTagEnd(text, tagNameEnd);
+            if (tagEnd === -1) {
+                return;
+            }
+
+            const startLine = this.offsetToLine(tagStart, lineStarts);
+            const endLine = this.offsetToLine(tagEnd, lineStarts);
+            const isSelfClosingTag = this.isSelfClosingTag(text, tagEnd);
+
+            offset = tagEnd + 1;
+
+            if (!tagName) {
+                continue;
+            }
 
             if (isClosingTag) {
                 this.closeElement(tagName, endLine, stack, ranges);
@@ -104,14 +144,68 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         stack: ElementNode[],
         ranges: vscode.FoldingRange[]
     ): void {
-        const node = stack.pop();
-        if (!node || node.name !== tagName) {
+        for (let i = stack.length - 1; i >= 0; i--) {
+            const node = stack[i];
+            if (node.name !== tagName) {
+                continue;
+            }
+
+            stack.length = i;
+            if (node.startLine < endLine) {
+                ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
+            }
             return;
         }
+    }
 
-        if (node.startLine < endLine) {
-            ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
+    private skipUntil(text: string, startOffset: number, marker: string): number {
+        const endOffset = text.indexOf(marker, startOffset);
+        return endOffset === -1 ? text.length : endOffset + marker.length;
+    }
+
+    private readTagNameEnd(text: string, startOffset: number): number {
+        if (!/[A-Za-z_]/.test(text[startOffset])) {
+            return startOffset;
         }
+
+        let offset = startOffset;
+        while (offset < text.length && /[\w:.-]/.test(text[offset])) {
+            offset++;
+        }
+        return offset;
+    }
+
+    private findTagEnd(text: string, startOffset: number): number {
+        let quote: string | undefined;
+
+        for (let offset = startOffset; offset < text.length; offset++) {
+            const char = text[offset];
+            if (quote) {
+                if (char === quote) {
+                    quote = undefined;
+                }
+                continue;
+            }
+
+            if (char === '"' || char === "'") {
+                quote = char;
+                continue;
+            }
+
+            if (char === '>') {
+                return offset;
+            }
+        }
+
+        return -1;
+    }
+
+    private isSelfClosingTag(text: string, tagEnd: number): boolean {
+        let offset = tagEnd - 1;
+        while (offset >= 0 && /\s/.test(text[offset])) {
+            offset--;
+        }
+        return text[offset] === '/';
     }
 
     private getLineStarts(text: string): number[] {
@@ -125,6 +219,10 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
     }
 
     private offsetToLine(offset: number, lineStarts: readonly number[]): number {
+        if (offset <= 0) {
+            return 0;
+        }
+
         let low = 0;
         let high = lineStarts.length - 1;
 
