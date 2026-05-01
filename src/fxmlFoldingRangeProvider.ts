@@ -6,10 +6,10 @@ interface ElementNode {
 }
 
 // Matches single-line FXML import processing instructions, including wildcard package imports.
-const importProcessingInstructionPattern = /^\s*<\?import\s+[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\.\*)*\s*\?>\s*$/;
+const importProcessingInstructionPattern = /^\s*<\?import\s+[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\.\*)*\s*\?>\s*$/;
 // FXML element names follow XML-style names: strict start character, broader continuation characters.
 const tagNameStartPattern = /[A-Za-z_]/;
-const tagNameCharacterPattern = /[\w:.-]/;
+const tagNameCharacterPattern = /[A-Za-z0-9_:.-]/;
 
 /**
  * Provides folding ranges for FXML files.
@@ -156,7 +156,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
                 continue;
             }
 
-            stack.splice(i);
+            stack.splice(i, stack.length - i);
             if (node.startLine < endLine) {
                 ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
             }
@@ -240,14 +240,18 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         while (low <= high) {
             const middle = Math.floor((low + high) / 2);
             const lineStart = lineStarts[middle];
-            const nextLineStart = lineStarts[middle + 1] ?? Number.POSITIVE_INFINITY;
 
             if (offset < lineStart) {
                 high = middle - 1;
-            } else if (offset >= nextLineStart) {
-                low = middle + 1;
-            } else {
+            } else if (middle === lineStarts.length - 1) {
                 return middle;
+            } else {
+                const nextLineStart = lineStarts[middle + 1];
+                if (offset >= nextLineStart) {
+                    low = middle + 1;
+                } else {
+                    return middle;
+                }
             }
         }
 
