@@ -32,6 +32,7 @@ suite('Extension Test Suite', () => {
             '  <fx:define>',
             '    <String fx:id="userName" fx:value="test"/>',
             '  </fx:define>',
+            '  <CustomContainer fx:id="customRoot"/>',
             '  <children/>',
             '</VBox>',
         ].join('\n'));
@@ -47,11 +48,19 @@ suite('Extension Test Suite', () => {
 
         const label = symbols[0].children.find(child => child.name === 'Label');
         assert.ok(label);
-        assert.strictEqual(label!.kind, vscode.SymbolKind.Variable);
+        assert.strictEqual(label!.kind, vscode.SymbolKind.Object);
 
         const fxDefine = symbols[0].children.find(child => child.name === 'fx:define');
         assert.ok(fxDefine);
         assert.strictEqual(fxDefine!.kind, vscode.SymbolKind.Namespace);
+
+        const definedString = fxDefine!.children.find(child => child.name === 'String');
+        assert.ok(definedString);
+        assert.strictEqual(definedString!.kind, vscode.SymbolKind.Variable);
+
+        const customContainer = symbols[0].children.find(child => child.name === 'CustomContainer');
+        assert.ok(customContainer);
+        assert.strictEqual(customContainer!.kind, vscode.SymbolKind.Object);
 
         const children = symbols[0].children.find(child => child.name === 'children');
         assert.ok(children);

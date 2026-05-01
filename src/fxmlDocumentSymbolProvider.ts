@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { SaxesParser } from 'saxes';
 
-const LAYOUT_TAGS = new Set([
+const BUILTIN_LAYOUT_TAGS = new Set([
     'anchorpane',
     'borderpane',
     'flowpane',
@@ -79,7 +79,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const symbol = new vscode.DocumentSymbol(
                 name,
                 detail,
-                this.getSymbolKind(name, attrs),
+                this.getSymbolKind(name, attrs, stack[stack.length - 1]?.symbol.name),
                 range,
                 selectionRange
             );
@@ -161,22 +161,31 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         return new vscode.Position(line, column);
     }
 
-    private getSymbolKind(name: string, attrs: Record<string, unknown>): vscode.SymbolKind {
+    private getSymbolKind(
+        name: string,
+        attrs: Record<string, unknown>,
+        parentName?: string
+    ): vscode.SymbolKind {
         const normalizedName = name.toLowerCase();
         if (NAMESPACE_TAGS.has(normalizedName)) {
             return vscode.SymbolKind.Namespace;
         }
 
-        if (typeof attrs['fx:id'] === 'string' && attrs['fx:id'].length > 0) {
-            return vscode.SymbolKind.Variable;
+        if (BUILTIN_LAYOUT_TAGS.has(normalizedName)) {
+            return vscode.SymbolKind.Module;
         }
 
-        if (LAYOUT_TAGS.has(normalizedName)) {
-            return vscode.SymbolKind.Module;
+        const hasFxId = typeof attrs['fx:id'] === 'string' && attrs['fx:id'].length > 0;
+        if (hasFxId && parentName?.toLowerCase() === 'fx:define') {
+            return vscode.SymbolKind.Variable;
         }
 
         if (/^[A-Z]/.test(name)) {
             return vscode.SymbolKind.Object;
+        }
+
+        if (hasFxId) {
+            return vscode.SymbolKind.Variable;
         }
 
         return vscode.SymbolKind.Field;
