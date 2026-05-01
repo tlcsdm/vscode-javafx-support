@@ -62,6 +62,28 @@ suite('Extension Test Suite', () => {
 function createMockFxmlDocument(text: string): vscode.TextDocument {
     const lines = text.split(/\r?\n/);
     const contentUri = vscode.Uri.parse('untitled:test.fxml');
+    const lineStartOffsets: number[] = [];
+    let runningOffset = 0;
+    for (const line of lines) {
+        lineStartOffsets.push(runningOffset);
+        runningOffset += line.length + 1;
+    }
+
+    const buildTextLine = (line: number): vscode.TextLine => {
+        const safeLine = Math.max(0, Math.min(line, lines.length - 1));
+        const lineText = lines[safeLine] ?? '';
+        const start = new vscode.Position(safeLine, 0);
+        const end = new vscode.Position(safeLine, lineText.length);
+
+        return {
+            lineNumber: safeLine,
+            text: lineText,
+            range: new vscode.Range(start, end),
+            rangeIncludingLineBreak: new vscode.Range(start, new vscode.Position(safeLine, lineText.length + 1)),
+            firstNonWhitespaceCharacterIndex: lineText.search(/\S|$/),
+            isEmptyOrWhitespace: /^\s*$/.test(lineText),
+        };
+    };
 
     return {
         uri: contentUri,
@@ -69,7 +91,10 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
         version: 1,
         lineCount: lines.length,
         getText: () => text,
-        lineAt: (line: number) => ({ text: lines[line] ?? '' }),
+        lineAt: (lineOrPosition: number | vscode.Position) => {
+            const line = typeof lineOrPosition === 'number' ? lineOrPosition : lineOrPosition.line;
+            return buildTextLine(line);
+        },
         positionAt: (offset: number) => {
             const normalizedOffset = Math.max(0, Math.min(offset, text.length));
             const before = text.slice(0, normalizedOffset);
@@ -78,11 +103,8 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
         },
         offsetAt: (position: vscode.Position) => {
             const safeLine = Math.max(0, Math.min(position.line, lines.length - 1));
-            let offset = 0;
-            for (let i = 0; i < safeLine; i++) {
-                offset += lines[i].length + 1;
-            }
-            return offset + Math.max(0, Math.min(position.character, lines[safeLine].length));
+            const lineOffset = lineStartOffsets[safeLine] ?? 0;
+            return lineOffset + Math.max(0, Math.min(position.character, lines[safeLine].length));
         },
     } as unknown as vscode.TextDocument;
 }
