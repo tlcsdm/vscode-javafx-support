@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
         )
     );
 
-    const fxmlSelector: vscode.DocumentSelector = { language: 'fxml', scheme: 'file' };
+    const fxmlSelector: vscode.DocumentSelector = { language: 'fxml' };
 
     // Register FXML → Controller definition provider
     context.subscriptions.push(
@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     // Register Controller → FXML definition provider
-    const javaSelector: vscode.DocumentSelector = { language: 'java', scheme: 'file' };
+    const javaSelector: vscode.DocumentSelector = { language: 'java' };
     context.subscriptions.push(
         vscode.languages.registerDefinitionProvider(
             javaSelector,
