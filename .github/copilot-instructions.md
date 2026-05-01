@@ -127,6 +127,16 @@ npx @vscode/vsce package
 - Use the narrowest `when` clause possible for menu contributions.
 - Prefer built-in context keys (`resourceLangId`, `editorLangId`) over custom context keys where sufficient.
 
+### Commit Messages
+- Follow the **Angular commit convention** for all commits.
+- Use the format: `<type>(<scope>): <subject>` when a scope is helpful, or `<type>: <subject>` when it is not.
+- Prefer common types such as `feat`, `fix`, `docs`, `refactor`, `test`, `build`, and `chore`.
+- Keep the subject concise, imperative, and lowercase where practical.
+- Examples:
+  - `feat(fxml): add controller navigation`
+  - `fix(scene-builder): handle missing executable path`
+  - `docs(copilot): add vscode extension skill guidance`
+
 ---
 
 ## Extension Activation
