@@ -174,8 +174,13 @@ suite('Extension Test Suite', () => {
         for (let i = 1; i < ranges.length; i++) {
             const previous = ranges[i - 1];
             const current = ranges[i];
+            const previousKind = String(previous.kind ?? '');
+            const currentKind = String(current.kind ?? '');
             const isOrdered = previous.start < current.start
-                || (previous.start === current.start && previous.end <= current.end);
+                || (previous.start === current.start && previous.end < current.end)
+                || (previous.start === current.start
+                    && previous.end === current.end
+                    && previousKind.localeCompare(currentKind) <= 0);
             assert.ok(isOrdered, `Expected ordered ranges, but got ${previous.start}-${previous.end} before ${current.start}-${current.end}.`);
         }
     });
