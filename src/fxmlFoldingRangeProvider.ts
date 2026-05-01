@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { SaxesParser } from 'saxes';
 
-interface OpenTagNode {
+interface ElementNode {
+    name: string;
     startLine: number;
 }
 
@@ -20,61 +20,9 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         _token: vscode.CancellationToken
     ): vscode.FoldingRange[] {
         const ranges: vscode.FoldingRange[] = [];
-        const text = document.getText();
 
         this.collectImportBlockRanges(document, ranges);
-
-        const parser = new SaxesParser({ xmlns: false, position: true });
-        const stack: OpenTagNode[] = [];
-
-        parser.on('opentag', (tag) => {
-            const openTagEndLine = parser.line - 1;
-            const openTagStart = this.findTagStart(document, openTagEndLine, parser.column - 1);
-
-            if (openTagStart.line < openTagEndLine) {
-                ranges.push(
-                    new vscode.FoldingRange(
-                        openTagStart.line,
-                        openTagEndLine,
-                        vscode.FoldingRangeKind.Region
-                    )
-                );
-            }
-
-            const isSelfClosing = typeof tag !== 'string' && tag.isSelfClosing;
-            if (!isSelfClosing) {
-                stack.push({ startLine: openTagStart.line });
-            }
-        });
-
-        parser.on('closetag', () => {
-            if (stack.length === 0) {
-                return;
-            }
-
-            const node = stack.pop()!;
-            const closeTagEndLine = parser.line - 1;
-            if (node.startLine < closeTagEndLine) {
-                ranges.push(
-                    new vscode.FoldingRange(
-                        node.startLine,
-                        closeTagEndLine,
-                        vscode.FoldingRangeKind.Region
-                    )
-                );
-            }
-        });
-
-        parser.on('error', () => {
-            // Ignore malformed XML and return best-effort ranges.
-        });
-
-        try {
-            parser.write(text).close();
-        } catch {
-            // Ignore parse-finalization failures (e.g. no root element yet)
-            // and keep already collected best-effort ranges.
-        }
+        this.collectElementRanges(document, ranges);
 
         return ranges;
     }
@@ -83,63 +31,119 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         document: vscode.TextDocument,
         ranges: vscode.FoldingRange[]
     ): void {
-        const importLines: number[] = [];
+        let groupStart: number | undefined;
+        let previousImportLine: number | undefined;
 
         for (let line = 0; line < document.lineCount; line++) {
             const lineText = document.lineAt(line).text;
-            if (/^\s*<\?import\b[\s\S]*\?>\s*$/.test(lineText)) {
-                importLines.push(line);
+            if (/^\s*<\?import\b.*\?>\s*$/.test(lineText)) {
+                groupStart ??= line;
+                previousImportLine = line;
+                continue;
             }
+
+            this.pushImportRange(groupStart, previousImportLine, ranges);
+            groupStart = undefined;
+            previousImportLine = undefined;
         }
 
-        if (importLines.length === 0) {
-            return;
-        }
+        this.pushImportRange(groupStart, previousImportLine, ranges);
+    }
 
-        let groupStart = importLines[0];
-        let previous = importLines[0];
-
-        for (let i = 1; i < importLines.length; i++) {
-            const current = importLines[i];
-            if (current !== previous + 1) {
-                if (groupStart < previous) {
-                    ranges.push(new vscode.FoldingRange(groupStart, previous, vscode.FoldingRangeKind.Imports));
-                }
-                groupStart = current;
-            }
-            previous = current;
-        }
-
-        if (groupStart < previous) {
-            ranges.push(new vscode.FoldingRange(groupStart, previous, vscode.FoldingRangeKind.Imports));
+    private pushImportRange(
+        groupStart: number | undefined,
+        previousImportLine: number | undefined,
+        ranges: vscode.FoldingRange[]
+    ): void {
+        if (groupStart !== undefined && previousImportLine !== undefined && groupStart < previousImportLine) {
+            ranges.push(new vscode.FoldingRange(groupStart, previousImportLine, vscode.FoldingRangeKind.Imports));
         }
     }
 
-    private findTagStart(
+    private collectElementRanges(
         document: vscode.TextDocument,
-        line: number,
-        column: number
-    ): vscode.Position {
-        let currentLine = line;
-        const startColumn = column;
+        ranges: vscode.FoldingRange[]
+    ): void {
+        const text = document.getText();
+        const lineStarts = this.getLineStarts(text);
+        const stack: ElementNode[] = [];
+        const tagPattern = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<!DOCTYPE[\s\S]*?>|<\/?([A-Za-z_][\w:.-]*)(?:\s[\s\S]*?)?>/g;
 
-        while (currentLine >= 0) {
-            const lineText = document.lineAt(currentLine).text;
-            if (lineText.length === 0) {
-                currentLine--;
+        for (const match of text.matchAll(tagPattern)) {
+            const tagText = match[0];
+            const tagName = match[1];
+            if (!tagName) {
                 continue;
             }
-            const lastCharIndex = lineText.length - 1;
-            const start = currentLine === line ? Math.min(startColumn, lastCharIndex) : lastCharIndex;
 
-            for (let i = start; i >= 0; i--) {
-                if (lineText[i] === '<') {
-                    return new vscode.Position(currentLine, i);
-                }
+            const startLine = this.offsetToLine(match.index, lineStarts);
+            const endLine = this.offsetToLine(match.index + tagText.length - 1, lineStarts);
+            const isClosingTag = tagText.startsWith('</');
+            const isSelfClosingTag = /\/\s*>$/.test(tagText);
+
+            if (isClosingTag) {
+                this.closeElement(tagName, endLine, stack, ranges);
+                continue;
             }
-            currentLine--;
+
+            if (startLine < endLine) {
+                ranges.push(new vscode.FoldingRange(startLine, endLine, vscode.FoldingRangeKind.Region));
+            }
+
+            if (!isSelfClosingTag) {
+                stack.push({ name: tagName, startLine });
+            }
+        }
+    }
+
+    private closeElement(
+        tagName: string,
+        endLine: number,
+        stack: ElementNode[],
+        ranges: vscode.FoldingRange[]
+    ): void {
+        for (let i = stack.length - 1; i >= 0; i--) {
+            const node = stack[i];
+            if (node.name !== tagName) {
+                continue;
+            }
+
+            stack.length = i;
+            if (node.startLine < endLine) {
+                ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
+            }
+            return;
+        }
+    }
+
+    private getLineStarts(text: string): number[] {
+        const lineStarts = [0];
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\n') {
+                lineStarts.push(i + 1);
+            }
+        }
+        return lineStarts;
+    }
+
+    private offsetToLine(offset: number, lineStarts: readonly number[]): number {
+        let low = 0;
+        let high = lineStarts.length - 1;
+
+        while (low <= high) {
+            const middle = Math.floor((low + high) / 2);
+            const lineStart = lineStarts[middle];
+            const nextLineStart = lineStarts[middle + 1] ?? Number.POSITIVE_INFINITY;
+
+            if (offset < lineStart) {
+                high = middle - 1;
+            } else if (offset >= nextLineStart) {
+                low = middle + 1;
+            } else {
+                return middle;
+            }
         }
 
-        return new vscode.Position(line, column);
+        return lineStarts.length - 1;
     }
 }
