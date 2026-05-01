@@ -5,6 +5,9 @@ interface ElementNode {
     startLine: number;
 }
 
+// Skips XML constructs that cannot contain element folds, then captures real XML/FXML tags.
+const fxmlTagPattern = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<!DOCTYPE[\s\S]*?>|<\/?([A-Za-z_][\w:.-]*)(?:\s[\s\S]*?)?>/g;
+
 /**
  * Provides folding ranges for FXML files.
  *
@@ -67,9 +70,8 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         const text = document.getText();
         const lineStarts = this.getLineStarts(text);
         const stack: ElementNode[] = [];
-        const tagPattern = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<!DOCTYPE[\s\S]*?>|<\/?([A-Za-z_][\w:.-]*)(?:\s[\s\S]*?)?>/g;
 
-        for (const match of text.matchAll(tagPattern)) {
+        for (const match of text.matchAll(fxmlTagPattern)) {
             const tagText = match[0];
             const tagName = match[1];
             if (!tagName) {
@@ -102,17 +104,13 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         stack: ElementNode[],
         ranges: vscode.FoldingRange[]
     ): void {
-        for (let i = stack.length - 1; i >= 0; i--) {
-            const node = stack[i];
-            if (node.name !== tagName) {
-                continue;
-            }
-
-            stack.length = i;
-            if (node.startLine < endLine) {
-                ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
-            }
+        const node = stack.pop();
+        if (!node || node.name !== tagName) {
             return;
+        }
+
+        if (node.startLine < endLine) {
+            ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
         }
     }
 
