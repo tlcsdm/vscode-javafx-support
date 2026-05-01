@@ -35,8 +35,12 @@ interface SymbolNode {
 export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     provideDocumentSymbols(
         document: vscode.TextDocument,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): vscode.DocumentSymbol[] {
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
         const text = document.getText();
         const parser = new SaxesParser({ xmlns: false, position: true });
 
@@ -48,6 +52,10 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         const stack: SymbolNode[] = [];
 
         parser.on("opentag", (tag) => {
+            if (token.isCancellationRequested) {
+                return;
+            }
+
             // saxes positions are 1-based; VS Code positions are 0-based.
             const line = parser.line - 1;
             const column = parser.column - 1;
@@ -100,6 +108,10 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         });
 
         parser.on("closetag", () => {
+            if (token.isCancellationRequested) {
+                return;
+            }
+
             const line = parser.line - 1;
             const column = parser.column - 1;
 
@@ -125,6 +137,10 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         });
 
         parser.write(text).close();
+
+        if (token.isCancellationRequested) {
+            return [];
+        }
 
         return roots.map(r => r.symbol);
     }

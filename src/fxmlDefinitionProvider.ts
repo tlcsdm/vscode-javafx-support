@@ -11,14 +11,18 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): Promise<vscode.Definition | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const line = document.lineAt(position).text;
 
         // Check if clicking on fx:controller
         const controllerMatch = this.getAttributeValueAtPosition(line, position.character, /fx:controller\s*=\s*"([^"]+)"/g);
         if (controllerMatch) {
-            return this.findControllerClass(controllerMatch);
+            return this.findControllerClass(controllerMatch, token);
         }
 
         // Check if clicking on onAction (or other event handlers)
@@ -26,7 +30,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         if (eventHandlerMatch) {
             const controllerClassName = this.findControllerInDocument(document);
             if (controllerClassName) {
-                return this.findMethodInController(controllerClassName, eventHandlerMatch);
+                return this.findMethodInController(controllerClassName, eventHandlerMatch, token);
             }
         }
 
@@ -35,7 +39,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         if (fxIdMatch) {
             const controllerClassName = this.findControllerInDocument(document);
             if (controllerClassName) {
-                return this.findFieldInController(controllerClassName, fxIdMatch);
+                return this.findFieldInController(controllerClassName, fxIdMatch, token);
             }
         }
 
@@ -69,14 +73,29 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     /**
      * Find a Java controller class file by its fully qualified name
      */
-    private async findControllerClass(className: string): Promise<vscode.Location | undefined> {
+    private async findControllerClass(className: string, token: vscode.CancellationToken): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const relativePath = className.replace(/\./g, '/') + '.java';
         const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         if (files.length > 0) {
             const document = await vscode.workspace.openTextDocument(files[0]);
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
             // Find the class declaration line
             for (let i = 0; i < document.lineCount; i++) {
+                if (token.isCancellationRequested) {
+                    return undefined;
+                }
+
                 const lineText = document.lineAt(i).text;
                 const simpleClassName = className.split('.').pop() || className;
                 if (lineText.includes(`class ${simpleClassName}`)) {
@@ -92,13 +111,29 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     /**
      * Find a method in the controller class (for event handlers)
      */
-    private async findMethodInController(controllerClassName: string, methodName: string): Promise<vscode.Location | undefined> {
+    private async findMethodInController(
+        controllerClassName: string,
+        methodName: string,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
         const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         if (files.length > 0) {
             const document = await vscode.workspace.openTextDocument(files[0]);
-            return this.findMemberInJavaFile(document, files[0], methodName, true);
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
+            return this.findMemberInJavaFile(document, files[0], methodName, true, token);
         }
 
         return undefined;
@@ -107,13 +142,29 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     /**
      * Find a field in the controller class (for fx:id)
      */
-    private async findFieldInController(controllerClassName: string, fieldName: string): Promise<vscode.Location | undefined> {
+    private async findFieldInController(
+        controllerClassName: string,
+        fieldName: string,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
         const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         if (files.length > 0) {
             const document = await vscode.workspace.openTextDocument(files[0]);
-            return this.findMemberInJavaFile(document, files[0], fieldName, false);
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
+            return this.findMemberInJavaFile(document, files[0], fieldName, false, token);
         }
 
         return undefined;
@@ -126,12 +177,17 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         document: vscode.TextDocument,
         uri: vscode.Uri,
         memberName: string,
-        isMethod: boolean
+        isMethod: boolean,
+        token: vscode.CancellationToken
     ): vscode.Location | undefined {
         let fxmlAnnotationLine = -1;
         let bestMatch: vscode.Location | undefined;
 
         for (let i = 0; i < document.lineCount; i++) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const lineText = document.lineAt(i).text;
 
             // Track @FXML annotation lines

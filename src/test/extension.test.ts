@@ -1,6 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
+import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
+import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
+import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -66,6 +70,30 @@ suite('Extension Test Suite', () => {
         assert.ok(children);
         assert.strictEqual(children!.kind, vscode.SymbolKind.Field);
     });
+
+    test('Providers should return early when cancellation is already requested', async () => {
+        const token = createCancelledToken();
+        const document = createThrowingTextDocument();
+        const position = new vscode.Position(0, 0);
+        const range = new vscode.Range(position, position);
+        const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
+
+        const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(document, token);
+        assert.deepStrictEqual(codeLenses, []);
+
+        const controllerDefinition = await new ControllerDefinitionProvider().provideDefinition(document, position, token);
+        assert.strictEqual(controllerDefinition, undefined);
+
+        const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, token);
+        assert.strictEqual(fxmlDefinition, undefined);
+
+        const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, token);
+        assert.deepStrictEqual(symbols, []);
+
+        const formatter = new FxmlFormattingEditProvider();
+        assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, token), []);
+        assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, token), []);
+    });
 });
 
 function createMockFxmlDocument(text: string): vscode.TextDocument {
@@ -116,4 +144,18 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
             return lineOffset + Math.max(0, Math.min(position.character, lines[safeLine].length));
         },
     } as unknown as vscode.TextDocument;
+}
+
+function createCancelledToken(): vscode.CancellationToken {
+    const source = new vscode.CancellationTokenSource();
+    source.cancel();
+    return source.token;
+}
+
+function createThrowingTextDocument(): vscode.TextDocument {
+    return new Proxy({}, {
+        get() {
+            throw new Error('document should not be accessed after cancellation');
+        },
+    }) as vscode.TextDocument;
 }

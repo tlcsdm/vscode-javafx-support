@@ -9,33 +9,46 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
     provideDocumentFormattingEdits(
         document: vscode.TextDocument,
         options: vscode.FormattingOptions,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): vscode.TextEdit[] {
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
         const range = new vscode.Range(
             document.positionAt(0),
             document.positionAt(document.getText().length)
         );
-        return this.formatRange(document, range, options);
+        return this.formatRange(document, range, options, token);
     }
 
     provideDocumentRangeFormattingEdits(
         document: vscode.TextDocument,
         range: vscode.Range,
         options: vscode.FormattingOptions,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): vscode.TextEdit[] {
-        return this.formatRange(document, range, options);
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
+        return this.formatRange(document, range, options, token);
     }
 
     private formatRange(
         document: vscode.TextDocument,
         range: vscode.Range,
-        options: vscode.FormattingOptions
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken
     ): vscode.TextEdit[] {
-        const text = document.getText(range);
-        const formatted = this.formatXml(text, options);
+        if (token.isCancellationRequested) {
+            return [];
+        }
 
-        if (formatted === text) {
+        const text = document.getText(range);
+        const formatted = this.formatXml(text, options, token);
+
+        if (formatted === undefined || formatted === text) {
             return [];
         }
 
@@ -45,7 +58,15 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
     /**
      * Format XML/FXML content with proper indentation
      */
-    private formatXml(xml: string, options: vscode.FormattingOptions): string {
+    private formatXml(
+        xml: string,
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken
+    ): string | undefined {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const indent = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
 
         // Normalize line endings
@@ -53,11 +74,18 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
 
         // Preserve XML declaration and processing instructions at the top
         const lines: string[] = [];
-        const parts = this.tokenize(text);
+        const parts = this.tokenize(text, token);
+        if (parts === undefined) {
+            return undefined;
+        }
 
         let level = 0;
 
         for (const part of parts) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const trimmed = part.trim();
             if (trimmed === '') {
                 continue;
@@ -102,12 +130,16 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
     /**
      * Tokenize XML content into tags and text segments
      */
-    private tokenize(xml: string): string[] {
+    private tokenize(xml: string, token: vscode.CancellationToken): string[] | undefined {
         const tokens: string[] = [];
         let current = '';
         let inTag = false;
 
         for (let i = 0; i < xml.length; i++) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const char = xml[i];
 
             // Handle CDATA sections
