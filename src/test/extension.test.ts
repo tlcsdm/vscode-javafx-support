@@ -152,4 +152,31 @@ suite('Extension Test Suite', () => {
 
         assert.ok(multilineAttributeRange, 'Expected a region folding range from line 1 to 3.');
     });
+
+    test('Should return folding ranges in ascending order', () => {
+        const document = createMockTextDocument(
+            `<?xml version="1.0" encoding="UTF-8"?>\n` +
+            `<?import javafx.scene.layout.VBox?>\n` +
+            `<?import javafx.scene.control.Button?>\n` +
+            `<VBox>\n` +
+            `    <children>\n` +
+            `        <Button text="ok"/>\n` +
+            `    </children>\n` +
+            `</VBox>`
+        );
+        const provider = new FxmlFoldingRangeProvider();
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {} as vscode.FoldingContext,
+            new vscode.CancellationTokenSource().token
+        );
+
+        for (let i = 1; i < ranges.length; i++) {
+            const previous = ranges[i - 1];
+            const current = ranges[i];
+            const isOrdered = previous.start < current.start
+                || (previous.start === current.start && previous.end <= current.end);
+            assert.ok(isOrdered, `Expected ordered ranges, but got ${previous.start}-${previous.end} before ${current.start}-${current.end}.`);
+        }
+    });
 });

@@ -30,7 +30,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         this.collectImportBlockRanges(document, ranges);
         this.collectElementRanges(document, ranges);
 
-        return ranges;
+        return this.normalizeRanges(ranges);
     }
 
     private collectImportBlockRanges(
@@ -256,5 +256,22 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         }
 
         return lineStarts.length - 1;
+    }
+
+    private normalizeRanges(ranges: vscode.FoldingRange[]): vscode.FoldingRange[] {
+        const normalized = ranges.filter(range => range.start < range.end);
+        normalized.sort((left, right) => {
+            if (left.start !== right.start) {
+                return left.start - right.start;
+            }
+            if (left.end !== right.end) {
+                return left.end - right.end;
+            }
+            const leftKind = String(left.kind ?? '');
+            const rightKind = String(right.kind ?? '');
+            return leftKind.localeCompare(rightKind);
+        });
+
+        return normalized;
     }
 }
