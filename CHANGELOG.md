@@ -1,5 +1,12 @@
 # Change Log
 
+## [Unreleased]
+
+### Added
+- Added an FXML FoldingRangeProvider for improved folding of nested elements
+- Added import-block folding for contiguous `<?import ...?>` lines
+- Added folding support for multi-line opening tags (multi-line attributes)
+
 ## [1.0.3] - 2026-04-02
 
 ### Fixed

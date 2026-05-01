@@ -5,6 +5,7 @@ import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
 import { FxmlFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
 import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
+import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
 
 /**
  * Extension activation
@@ -86,6 +87,14 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentRangeFormattingEditProvider(
             fxmlSelector,
             new FxmlFormattingEditProvider()
+        )
+    );
+
+    // Register FXML folding ranges
+    context.subscriptions.push(
+        vscode.languages.registerFoldingRangeProvider(
+            fxmlSelector,
+            new FxmlFoldingRangeProvider()
         )
     );
 

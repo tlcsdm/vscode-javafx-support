@@ -1,5 +1,38 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
+
+class MockTextDocument {
+    private readonly lines: string[];
+
+    constructor(private readonly content: string) {
+        this.lines = content.split(/\r?\n/);
+    }
+
+    getText(): string {
+        return this.content;
+    }
+
+    lineAt(line: number): vscode.TextLine {
+        const text = this.lines[line] ?? '';
+        return {
+            lineNumber: line,
+            text,
+            range: new vscode.Range(line, 0, line, text.length),
+            rangeIncludingLineBreak: new vscode.Range(line, 0, line, text.length),
+            firstNonWhitespaceCharacterIndex: text.search(/\S|$/),
+            isEmptyOrWhitespace: text.trim().length === 0,
+        };
+    }
+
+    get lineCount(): number {
+        return this.lines.length;
+    }
+}
+
+function asTextDocument(content: string): vscode.TextDocument {
+    return new MockTextDocument(content) as unknown as vscode.TextDocument;
+}
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -20,5 +53,45 @@ suite('Extension Test Suite', () => {
         return vscode.commands.getCommands(true).then(commands => {
             assert.ok(commands.includes('tlcsdm.javafxSupport.openInSceneBuilder'));
         });
+    });
+
+    test('Should provide folding range for contiguous <?import?> block', () => {
+        const document = asTextDocument(
+            `<?xml version="1.0" encoding="UTF-8"?>\n` +
+            `<?import javafx.scene.layout.VBox?>\n` +
+            `<?import javafx.scene.control.Button?>\n` +
+            `<?import javafx.scene.control.Label?>\n` +
+            `<VBox/>`
+        );
+        const provider = new FxmlFoldingRangeProvider();
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {} as vscode.FoldingContext,
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges.some(range =>
+            range.start === 1
+            && range.end === 3
+            && range.kind === vscode.FoldingRangeKind.Imports
+        ));
+    });
+
+    test('Should provide folding range for multi-line opening tag attributes', () => {
+        const document = asTextDocument(
+            `<VBox>\n` +
+            `    <Button\n` +
+            `        fx:id="myButton"\n` +
+            `        text="Click Me"/>\n` +
+            `</VBox>`
+        );
+        const provider = new FxmlFoldingRangeProvider();
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {} as vscode.FoldingContext,
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges.some(range => range.start === 1 && range.end === 3));
     });
 });
