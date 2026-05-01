@@ -69,7 +69,12 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
             // Ignore malformed XML and return best-effort ranges.
         });
 
-        parser.write(text).close();
+        try {
+            parser.write(text).close();
+        } catch {
+            // Ignore parse-finalization failures (e.g. no root element yet)
+            // and keep already collected best-effort ranges.
+        }
 
         return ranges;
     }

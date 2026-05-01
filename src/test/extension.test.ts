@@ -79,6 +79,28 @@ suite('Extension Test Suite', () => {
         assert.ok(importRange, 'Expected an imports folding range from line 1 to 3.');
     });
 
+    test('Should provide import folding for import-only snippet', () => {
+        const document = createMockTextDocument(
+            `<?import javafx.geometry.Insets?>\n` +
+            `<?import javafx.scene.control.*?>\n` +
+            `<?import javafx.scene.layout.*?>`
+        );
+        const provider = new FxmlFoldingRangeProvider();
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {} as vscode.FoldingContext,
+            new vscode.CancellationTokenSource().token
+        );
+
+        const importRange = ranges.find(range =>
+            range.start === 0
+            && range.end === 2
+            && range.kind === vscode.FoldingRangeKind.Imports
+        );
+
+        assert.ok(importRange, 'Expected an imports folding range from line 0 to 2.');
+    });
+
     test('Should provide folding range for multi-line opening tag attributes', () => {
         const document = createMockTextDocument(
             `<VBox>\n` +
