@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findControllerForFxmlDocument } from './fxmlIncludeNavigation';
 
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
@@ -24,7 +25,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         // Check if clicking on onAction (or other event handlers)
         const eventHandlerMatch = this.getAttributeValueAtPosition(line, position.character, /on\w+\s*=\s*"#(\w+)"/g);
         if (eventHandlerMatch) {
-            const controllerClassName = this.findControllerInDocument(document);
+            const controllerClassName = await findControllerForFxmlDocument(document);
             if (controllerClassName) {
                 return this.findMethodInController(controllerClassName, eventHandlerMatch);
             }
@@ -33,7 +34,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         // Check if clicking on fx:id
         const fxIdMatch = this.getAttributeValueAtPosition(line, position.character, /fx:id\s*=\s*"(\w+)"/g);
         if (fxIdMatch) {
-            const controllerClassName = this.findControllerInDocument(document);
+            const controllerClassName = await findControllerForFxmlDocument(document);
             if (controllerClassName) {
                 return this.findFieldInController(controllerClassName, fxIdMatch);
             }
@@ -55,15 +56,6 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             }
         }
         return undefined;
-    }
-
-    /**
-     * Find the fx:controller value in the FXML document
-     */
-    private findControllerInDocument(document: vscode.TextDocument): string | undefined {
-        const text = document.getText();
-        const match = text.match(/fx:controller\s*=\s*"([^"]+)"/);
-        return match ? match[1] : undefined;
     }
 
     /**

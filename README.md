@@ -55,10 +55,12 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - Ctrl+Click on `fx:controller="com.example.MyController"` to open the controller class
 - Ctrl+Click on `fx:id="myButton"` to jump to the `@FXML` annotated field
 - Ctrl+Click on `onAction="#handleClick"` to jump to the `@FXML` annotated method
+- Supports nested `fx:include` chains (included FXML can resolve to parent controller)
 
 **Controller → FXML:**
 - Ctrl+Click on an `@FXML` annotated field to jump to the `fx:id` in the FXML file
 - Ctrl+Click on an `@FXML` annotated method to jump to the event handler in the FXML file
+- Supports nested `fx:include` chains when target nodes are in included FXML files
 
 ## Configuration
 

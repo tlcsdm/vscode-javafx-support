@@ -1,5 +1,10 @@
 # Change Log
 
+## [Unreleased]
+
+### Added
+- Added nested `fx:include` navigation support for FXML ↔ Controller definition lookups.
+
 ## [1.0.3] - 2026-04-02
 
 ### Fixed

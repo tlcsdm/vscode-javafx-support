@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findControllerInFxmlText, findMemberInFxmlWithIncludes } from './fxmlIncludeNavigation';
 
 /**
  * Provides "Go to Definition" from Java controller classes to FXML files.
@@ -132,66 +133,13 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
             const text = document.getText();
 
             // Check if this FXML uses the specified controller
-            if (!text.includes(`fx:controller="${controllerClassName}"`)) {
+            if (findControllerInFxmlText(text) !== controllerClassName) {
                 continue;
             }
 
-            // Search for the member in the FXML
-            if (isMethod) {
-                // Look for event handler references like onAction="#methodName"
-                const location = this.findEventHandlerInFxml(document, fxmlUri, memberName);
-                if (location) {
-                    return location;
-                }
-            } else {
-                // Look for fx:id="fieldName"
-                const location = this.findFxIdInFxml(document, fxmlUri, memberName);
-                if (location) {
-                    return location;
-                }
-            }
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Find an event handler reference in an FXML file
-     */
-    private findEventHandlerInFxml(
-        document: vscode.TextDocument,
-        uri: vscode.Uri,
-        methodName: string
-    ): vscode.Location | undefined {
-        const pattern = new RegExp(`="#${this.escapeRegex(methodName)}"`);
-
-        for (let i = 0; i < document.lineCount; i++) {
-            const lineText = document.lineAt(i).text;
-            const match = pattern.exec(lineText);
-            if (match) {
-                // Position at the method name (after ="#)
-                return new vscode.Location(uri, new vscode.Position(i, match.index + 2));
-            }
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Find an fx:id reference in an FXML file
-     */
-    private findFxIdInFxml(
-        document: vscode.TextDocument,
-        uri: vscode.Uri,
-        fieldName: string
-    ): vscode.Location | undefined {
-        const pattern = new RegExp(`fx:id="${this.escapeRegex(fieldName)}"`);
-
-        for (let i = 0; i < document.lineCount; i++) {
-            const lineText = document.lineAt(i).text;
-            const match = pattern.exec(lineText);
-            if (match) {
-                return new vscode.Location(uri, new vscode.Position(i, match.index));
+            const location = await findMemberInFxmlWithIncludes(document, fxmlUri, memberName, isMethod);
+            if (location) {
+                return location;
             }
         }
 

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findControllerInFxmlText, findMemberInFxmlWithIncludes } from './fxmlIncludeNavigation';
 
 /**
  * Provides CodeLens for @FXML annotated fields and methods in Java controller classes.
@@ -132,38 +133,15 @@ export async function goToFxmlCommand(
         const document = await vscode.workspace.openTextDocument(fxmlUri);
         const text = document.getText();
 
-        if (!text.includes(`fx:controller="${controllerClassName}"`)) {
+        if (findControllerInFxmlText(text) !== controllerClassName) {
             continue;
         }
 
-        let targetLine = -1;
-        let targetChar = 0;
-
-        if (isMethod) {
-            const pattern = new RegExp(`=\\s*"#${escapeRegex(memberName)}"`);
-            for (let i = 0; i < document.lineCount; i++) {
-                const match = pattern.exec(document.lineAt(i).text);
-                if (match) {
-                    targetLine = i;
-                    targetChar = match.index + 2;
-                    break;
-                }
-            }
-        } else {
-            const pattern = new RegExp(`fx:id="${escapeRegex(memberName)}"`);
-            for (let i = 0; i < document.lineCount; i++) {
-                const match = pattern.exec(document.lineAt(i).text);
-                if (match) {
-                    targetLine = i;
-                    targetChar = match.index;
-                    break;
-                }
-            }
-        }
-
-        if (targetLine >= 0) {
-            const position = new vscode.Position(targetLine, targetChar);
-            await vscode.window.showTextDocument(document, {
+        const location = await findMemberInFxmlWithIncludes(document, fxmlUri, memberName, isMethod);
+        if (location) {
+            const targetDocument = await vscode.workspace.openTextDocument(location.uri);
+            const position = location.range.start;
+            await vscode.window.showTextDocument(targetDocument, {
                 selection: new vscode.Range(position, position),
                 preserveFocus: false
             });
