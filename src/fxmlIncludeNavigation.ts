@@ -3,19 +3,19 @@ import * as vscode from 'vscode';
 
 export function findIncludeSources(text: string): string[] {
     const sources: string[] = [];
-    const pattern = /<\s*fx:include\b[^>]*\bsource\s*=\s*(['"])([^'"]+)\1/g;
+    const pattern = /<\s*fx:include\b[^>]*\bsource\s*=\s*(?:"([^"]+)"|'([^']+)')/g;
     let match: RegExpExecArray | null;
 
     while ((match = pattern.exec(text)) !== null) {
-        sources.push(match[2]);
+        sources.push(match[1] ?? match[2]);
     }
 
     return sources;
 }
 
 export function findControllerInFxmlText(text: string): string | undefined {
-    const match = text.match(/fx:controller\s*=\s*"([^"]+)"/);
-    return match ? match[1] : undefined;
+    const match = text.match(/fx:controller\s*=\s*(?:"([^"]+)"|'([^']+)')/);
+    return match ? (match[1] ?? match[2]) : undefined;
 }
 
 function resolveIncludeUri(baseUri: vscode.Uri, source: string): vscode.Uri {
@@ -120,13 +120,14 @@ function findEventHandlerInFxml(
     uri: vscode.Uri,
     methodName: string
 ): vscode.Location | undefined {
-    const pattern = new RegExp(`="#${escapeRegex(methodName)}"`);
+    const pattern = new RegExp(`\\bon\\w+\\s*=\\s*(?:"#${escapeRegex(methodName)}"|'#${escapeRegex(methodName)}')`);
 
     for (let i = 0; i < document.lineCount; i++) {
         const lineText = document.lineAt(i).text;
         const match = pattern.exec(lineText);
         if (match) {
-            return new vscode.Location(uri, new vscode.Position(i, match.index + 2));
+            const methodNameStart = match.index + match[0].indexOf('#') + 1;
+            return new vscode.Location(uri, new vscode.Position(i, methodNameStart));
         }
     }
 
@@ -138,7 +139,7 @@ function findFxIdInFxml(
     uri: vscode.Uri,
     fieldName: string
 ): vscode.Location | undefined {
-    const pattern = new RegExp(`fx:id="${escapeRegex(fieldName)}"`);
+    const pattern = new RegExp(`fx:id\\s*=\\s*(?:"${escapeRegex(fieldName)}"|'${escapeRegex(fieldName)}')`);
 
     for (let i = 0; i < document.lineCount; i++) {
         const lineText = document.lineAt(i).text;

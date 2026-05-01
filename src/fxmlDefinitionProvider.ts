@@ -17,13 +17,13 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         const line = document.lineAt(position).text;
 
         // Check if clicking on fx:controller
-        const controllerMatch = this.getAttributeValueAtPosition(line, position.character, /fx:controller\s*=\s*"([^"]+)"/g);
+        const controllerMatch = this.getAttributeValueAtPosition(line, position.character, /fx:controller\s*=\s*(?:"([^"]+)"|'([^']+)')/g);
         if (controllerMatch) {
             return this.findControllerClass(controllerMatch);
         }
 
         // Check if clicking on onAction (or other event handlers)
-        const eventHandlerMatch = this.getAttributeValueAtPosition(line, position.character, /on\w+\s*=\s*"#(\w+)"/g);
+        const eventHandlerMatch = this.getAttributeValueAtPosition(line, position.character, /on\w+\s*=\s*(?:"#(\w+)"|'#(\w+)')/g);
         if (eventHandlerMatch) {
             const controllerClassName = await findControllerForFxmlDocument(document);
             if (controllerClassName) {
@@ -32,7 +32,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         // Check if clicking on fx:id
-        const fxIdMatch = this.getAttributeValueAtPosition(line, position.character, /fx:id\s*=\s*"(\w+)"/g);
+        const fxIdMatch = this.getAttributeValueAtPosition(line, position.character, /fx:id\s*=\s*(?:"(\w+)"|'(\w+)')/g);
         if (fxIdMatch) {
             const controllerClassName = await findControllerForFxmlDocument(document);
             if (controllerClassName) {
@@ -52,7 +52,12 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             const start = match.index;
             const end = start + match[0].length;
             if (charPos >= start && charPos <= end) {
-                return match[1];
+                for (let groupIndex = 1; groupIndex < match.length; groupIndex++) {
+                    if (match[groupIndex] !== undefined) {
+                        return match[groupIndex];
+                    }
+                }
+                return undefined;
             }
         }
         return undefined;

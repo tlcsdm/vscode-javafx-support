@@ -28,7 +28,7 @@ suite('Extension Test Suite', () => {
             <AnchorPane xmlns:fx="http://javafx.com/fxml">
                 <children>
                     <fx:include source="child.fxml" />
-                    <fx:include source='../components/form.fxml'/>
+                    <fx:include fx:id="formPane" source='../components/form.fxml' />
                 </children>
             </AnchorPane>
         `;
@@ -38,6 +38,11 @@ suite('Extension Test Suite', () => {
 
     test('Should parse fx:controller value', () => {
         const fxml = `<BorderPane fx:controller="com.example.RootController" />`;
+        assert.strictEqual(findControllerInFxmlText(fxml), 'com.example.RootController');
+    });
+
+    test('Should parse single-quoted fx:controller value', () => {
+        const fxml = `<BorderPane fx:controller='com.example.RootController' />`;
         assert.strictEqual(findControllerInFxmlText(fxml), 'com.example.RootController');
     });
 });
