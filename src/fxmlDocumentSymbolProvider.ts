@@ -1,6 +1,23 @@
 import * as vscode from 'vscode';
 import { SaxesParser } from 'saxes';
 
+const LAYOUT_TAGS = new Set([
+    'anchorpane',
+    'borderpane',
+    'flowpane',
+    'gridpane',
+    'hbox',
+    'pane',
+    'stackpane',
+    'tilepane',
+    'vbox',
+]);
+
+const NAMESPACE_TAGS = new Set([
+    'fx:define',
+    'fx:include',
+]);
+
 interface SymbolNode {
     symbol: vscode.DocumentSymbol;
     children: SymbolNode[];
@@ -62,7 +79,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
             const symbol = new vscode.DocumentSymbol(
                 name,
                 detail,
-                vscode.SymbolKind.Field,
+                this.getSymbolKind(name, attrs),
                 range,
                 selectionRange
             );
@@ -142,5 +159,26 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
 
         // Fallback – should not happen in well-formed XML.
         return new vscode.Position(line, column);
+    }
+
+    private getSymbolKind(name: string, attrs: Record<string, unknown>): vscode.SymbolKind {
+        const normalizedName = name.toLowerCase();
+        if (NAMESPACE_TAGS.has(normalizedName)) {
+            return vscode.SymbolKind.Namespace;
+        }
+
+        if (typeof attrs['fx:id'] === 'string' && attrs['fx:id'].length > 0) {
+            return vscode.SymbolKind.Variable;
+        }
+
+        if (LAYOUT_TAGS.has(normalizedName)) {
+            return vscode.SymbolKind.Module;
+        }
+
+        if (/^[A-Z]/.test(name)) {
+            return vscode.SymbolKind.Object;
+        }
+
+        return vscode.SymbolKind.Field;
     }
 }
