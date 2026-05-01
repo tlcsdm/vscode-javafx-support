@@ -130,7 +130,7 @@ npx @vscode/vsce package
 ### Commit Messages
 - Follow the **Angular commit convention** for all commits.
 - Use the format: `<type>(<scope>): <subject>` when a scope is helpful, or `<type>: <subject>` when it is not.
-- Prefer common types such as `feat`, `fix`, `docs`, `refactor`, `test`, `build`, and `chore`.
+- Prefer common types such as `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `style` and `chore`.
 - Keep the subject concise, imperative, and lowercase where practical.
 - Examples:
   - `feat(fxml): add controller navigation`
