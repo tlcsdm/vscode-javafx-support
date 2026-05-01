@@ -44,11 +44,11 @@ suite('Extension Test Suite', () => {
 
         const button = symbols[0].children.find(child => child.name === 'Button');
         assert.ok(button);
-        assert.strictEqual(button!.kind, vscode.SymbolKind.Object);
+        assert.strictEqual(button!.kind, vscode.SymbolKind.Class);
 
         const label = symbols[0].children.find(child => child.name === 'Label');
         assert.ok(label);
-        assert.strictEqual(label!.kind, vscode.SymbolKind.Object);
+        assert.strictEqual(label!.kind, vscode.SymbolKind.Class);
 
         const fxDefine = symbols[0].children.find(child => child.name === 'fx:define');
         assert.ok(fxDefine);
@@ -60,7 +60,7 @@ suite('Extension Test Suite', () => {
 
         const customContainer = symbols[0].children.find(child => child.name === 'CustomContainer');
         assert.ok(customContainer);
-        assert.strictEqual(customContainer!.kind, vscode.SymbolKind.Object);
+        assert.strictEqual(customContainer!.kind, vscode.SymbolKind.Class);
 
         const children = symbols[0].children.find(child => child.name === 'children');
         assert.ok(children);

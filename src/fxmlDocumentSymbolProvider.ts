@@ -181,7 +181,7 @@ export class FxmlDocumentSymbolProvider implements vscode.DocumentSymbolProvider
         }
 
         if (/^[A-Z]/.test(name)) {
-            return vscode.SymbolKind.Object;
+            return vscode.SymbolKind.Class;
         }
 
         if (hasFxId) {
