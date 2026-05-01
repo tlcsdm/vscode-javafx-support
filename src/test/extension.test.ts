@@ -30,7 +30,7 @@ class MockTextDocument {
     }
 }
 
-function asTextDocument(content: string): vscode.TextDocument {
+function createMockTextDocument(content: string): vscode.TextDocument {
     return new MockTextDocument(content) as unknown as vscode.TextDocument;
 }
 
@@ -56,7 +56,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Should provide folding range for contiguous <?import?> block', () => {
-        const document = asTextDocument(
+        const document = createMockTextDocument(
             `<?xml version="1.0" encoding="UTF-8"?>\n` +
             `<?import javafx.scene.layout.VBox?>\n` +
             `<?import javafx.scene.control.Button?>\n` +
@@ -70,15 +70,17 @@ suite('Extension Test Suite', () => {
             new vscode.CancellationTokenSource().token
         );
 
-        assert.ok(ranges.some(range =>
+        const importRange = ranges.find(range =>
             range.start === 1
             && range.end === 3
             && range.kind === vscode.FoldingRangeKind.Imports
-        ));
+        );
+
+        assert.ok(importRange, 'Expected an imports folding range from line 1 to 3.');
     });
 
     test('Should provide folding range for multi-line opening tag attributes', () => {
-        const document = asTextDocument(
+        const document = createMockTextDocument(
             `<VBox>\n` +
             `    <Button\n` +
             `        fx:id="myButton"\n` +
@@ -92,6 +94,12 @@ suite('Extension Test Suite', () => {
             new vscode.CancellationTokenSource().token
         );
 
-        assert.ok(ranges.some(range => range.start === 1 && range.end === 3));
+        const multilineAttributeRange = ranges.find(range =>
+            range.start === 1
+            && range.end === 3
+            && range.kind === vscode.FoldingRangeKind.Region
+        );
+
+        assert.ok(multilineAttributeRange, 'Expected a region folding range from line 1 to 3.');
     });
 });

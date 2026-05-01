@@ -115,23 +115,24 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         line: number,
         column: number
     ): vscode.Position {
-        let l = line;
+        let currentLine = line;
         const startColumn = column;
 
-        while (l >= 0) {
-            const lineText = document.lineAt(l).text;
+        while (currentLine >= 0) {
+            const lineText = document.lineAt(currentLine).text;
             if (lineText.length === 0) {
-                l--;
+                currentLine--;
                 continue;
             }
-            const start = l === line ? Math.min(startColumn, lineText.length - 1) : lineText.length - 1;
+            const lastCharIndex = lineText.length - 1;
+            const start = currentLine === line ? Math.min(startColumn, lastCharIndex) : lastCharIndex;
 
             for (let i = start; i >= 0; i--) {
                 if (lineText[i] === '<') {
-                    return new vscode.Position(l, i);
+                    return new vscode.Position(currentLine, i);
                 }
             }
-            l--;
+            currentLine--;
         }
 
         return new vscode.Position(line, column);
