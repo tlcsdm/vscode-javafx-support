@@ -5,6 +5,12 @@ interface ElementNode {
     startLine: number;
 }
 
+// Matches single-line FXML import processing instructions, including wildcard package imports.
+const importProcessingInstructionPattern = /^\s*<\?import\s+[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\.\*)*\s*\?>\s*$/;
+// FXML element names follow XML-style names: strict start character, broader continuation characters.
+const tagNameStartPattern = /[A-Za-z_]/;
+const tagNameCharacterPattern = /[\w:.-]/;
+
 /**
  * Provides folding ranges for FXML files.
  *
@@ -36,7 +42,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         for (let line = 0; line < document.lineCount; line++) {
             const lineText = document.lineAt(line).text;
-            if (/^\s*<\?import\s+[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\.\*)*\s*\?>\s*$/.test(lineText)) {
+            if (importProcessingInstructionPattern.test(lineText)) {
                 groupStart ??= line;
                 previousImportLine = line;
                 continue;
@@ -150,7 +156,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
                 continue;
             }
 
-            stack.length = i;
+            stack.splice(i);
             if (node.startLine < endLine) {
                 ranges.push(new vscode.FoldingRange(node.startLine, endLine, vscode.FoldingRangeKind.Region));
             }
@@ -164,12 +170,12 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
     }
 
     private readTagNameEnd(text: string, startOffset: number): number {
-        if (!/[A-Za-z_]/.test(text[startOffset])) {
+        if (!tagNameStartPattern.test(text[startOffset])) {
             return startOffset;
         }
 
         let offset = startOffset;
-        while (offset < text.length && /[\w:.-]/.test(text[offset])) {
+        while (offset < text.length && tagNameCharacterPattern.test(text[offset])) {
             offset++;
         }
         return offset;
@@ -218,6 +224,11 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
         return lineStarts;
     }
 
+    /**
+     * Converts a document offset to a line number with binary search.
+     *
+     * This keeps repeated tag offset lookups at O(log n) for large FXML documents.
+     */
     private offsetToLine(offset: number, lineStarts: readonly number[]): number {
         if (offset <= 0) {
             return 0;
