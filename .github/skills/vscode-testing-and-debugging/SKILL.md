@@ -1,3 +1,8 @@
+---
+name: vscode-testing-and-debugging
+description: Guidance for testing and debugging VS Code extensions with the existing Mocha and @vscode/test-electron setup.
+---
+
 # Skill: Testing and Debugging VS Code Extensions
 
 ## Overview

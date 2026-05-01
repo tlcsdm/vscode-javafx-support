@@ -1,3 +1,8 @@
+---
+name: vscode-performance-and-compatibility
+description: Guidance for improving VS Code extension performance, responsiveness, and compatibility across supported VS Code versions.
+---
+
 # Skill: Performance and Compatibility
 
 ## Overview

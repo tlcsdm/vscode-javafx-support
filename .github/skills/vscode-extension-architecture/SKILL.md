@@ -1,3 +1,8 @@
+---
+name: vscode-extension-architecture
+description: Guidance for implementing and modifying VS Code extension architecture, activation flow, disposables, and extension-host-safe patterns.
+---
+
 # Skill: VS Code Extension Architecture
 
 ## Overview

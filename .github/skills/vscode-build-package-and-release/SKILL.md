@@ -1,3 +1,8 @@
+---
+name: vscode-build-package-and-release
+description: Guidance for building, packaging, and releasing VS Code extensions with esbuild, vsce, and GitHub Actions workflows.
+---
+
 # Skill: Build, Packaging, and Release
 
 ## Overview

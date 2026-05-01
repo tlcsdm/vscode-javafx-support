@@ -1,3 +1,8 @@
+---
+name: vscode-configuration-and-settings
+description: Guidance for declaring, reading, updating, and reacting to VS Code extension configuration and settings changes safely.
+---
+
 # Skill: Configuration and Settings
 
 ## Overview

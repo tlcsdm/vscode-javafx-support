@@ -1,3 +1,8 @@
+---
+name: vscode-refactor-and-maintenance
+description: Guidance for refactoring and maintaining VS Code extensions safely across source, contribution metadata, localization, tests, and documentation.
+---
+
 # Skill: Refactoring and Maintenance
 
 ## Overview

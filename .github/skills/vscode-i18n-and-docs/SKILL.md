@@ -1,3 +1,8 @@
+---
+name: vscode-i18n-and-docs
+description: Guidance for keeping VS Code extension localization, package.nls files, README content, and changelog updates in sync.
+---
+
 # Skill: Internationalization (i18n) and Documentation
 
 ## Overview

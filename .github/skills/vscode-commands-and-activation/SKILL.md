@@ -1,3 +1,8 @@
+---
+name: vscode-commands-and-activation
+description: Guidance for implementing and modifying VS Code commands, menus, when clauses, and activation behavior.
+---
+
 # Skill: Commands and Extension Activation
 
 ## Overview

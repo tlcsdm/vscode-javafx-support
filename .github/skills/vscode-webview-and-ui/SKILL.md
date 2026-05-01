@@ -1,3 +1,8 @@
+---
+name: vscode-webview-and-ui
+description: Guidance for building VS Code webviews and native extension UI while preserving accessibility, security, and theme compatibility.
+---
+
 # Skill: Webviews and Native VS Code UI
 
 ## Overview

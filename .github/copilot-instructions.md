@@ -162,14 +162,14 @@ Detailed, reusable guides are in `.github/skills/`. Consult them when working on
 
 | Topic | File |
 |---|---|
-| Extension architecture & patterns | `.github/skills/vscode-extension-architecture/SKILLS.md` |
-| `package.json` contribution points | `.github/skills/vscode-package-json-and-contributes/SKILLS.md` |
-| Commands & activation | `.github/skills/vscode-commands-and-activation/SKILLS.md` |
-| Language features & providers | `.github/skills/vscode-language-features/SKILLS.md` |
-| Webviews & native VS Code UI | `.github/skills/vscode-webview-and-ui/SKILLS.md` |
-| Configuration & settings | `.github/skills/vscode-configuration-and-settings/SKILLS.md` |
-| Testing & debugging | `.github/skills/vscode-testing-and-debugging/SKILLS.md` |
-| Build, packaging & release | `.github/skills/vscode-build-package-and-release/SKILLS.md` |
-| i18n & documentation | `.github/skills/vscode-i18n-and-docs/SKILLS.md` |
-| Performance & compatibility | `.github/skills/vscode-performance-and-compatibility/SKILLS.md` |
-| Refactoring & maintenance | `.github/skills/vscode-refactor-and-maintenance/SKILLS.md` |
+| Extension architecture & patterns | `.github/skills/vscode-extension-architecture/SKILL.md` |
+| `package.json` contribution points | `.github/skills/vscode-package-json-and-contributes/SKILL.md` |
+| Commands & activation | `.github/skills/vscode-commands-and-activation/SKILL.md` |
+| Language features & providers | `.github/skills/vscode-language-features/SKILL.md` |
+| Webviews & native VS Code UI | `.github/skills/vscode-webview-and-ui/SKILL.md` |
+| Configuration & settings | `.github/skills/vscode-configuration-and-settings/SKILL.md` |
+| Testing & debugging | `.github/skills/vscode-testing-and-debugging/SKILL.md` |
+| Build, packaging & release | `.github/skills/vscode-build-package-and-release/SKILL.md` |
+| i18n & documentation | `.github/skills/vscode-i18n-and-docs/SKILL.md` |
+| Performance & compatibility | `.github/skills/vscode-performance-and-compatibility/SKILL.md` |
+| Refactoring & maintenance | `.github/skills/vscode-refactor-and-maintenance/SKILL.md` |

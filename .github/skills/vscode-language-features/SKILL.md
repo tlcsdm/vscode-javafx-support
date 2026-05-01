@@ -1,3 +1,8 @@
+---
+name: vscode-language-features
+description: Guidance for implementing VS Code language features such as definitions, hovers, completions, symbols, diagnostics, formatting, and related providers.
+---
+
 # Skill: Language Features and Providers
 
 ## Overview

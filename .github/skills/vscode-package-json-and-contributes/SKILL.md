@@ -1,3 +1,8 @@
+---
+name: vscode-package-json-and-contributes
+description: Guidance for updating VS Code extension package.json fields and contributes entries while keeping activation events, menus, and localization aligned.
+---
+
 # Skill: `package.json` Contribution Points
 
 ## Overview
