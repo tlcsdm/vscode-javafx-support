@@ -61,9 +61,28 @@ suite('Extension Test Suite', () => {
 
 function createMockFxmlDocument(text: string): vscode.TextDocument {
     const lines = text.split(/\r?\n/);
+    const contentUri = vscode.Uri.parse('untitled:test.fxml');
 
     return {
+        uri: contentUri,
+        languageId: 'fxml',
+        version: 1,
+        lineCount: lines.length,
         getText: () => text,
         lineAt: (line: number) => ({ text: lines[line] ?? '' }),
+        positionAt: (offset: number) => {
+            const normalizedOffset = Math.max(0, Math.min(offset, text.length));
+            const before = text.slice(0, normalizedOffset);
+            const parts = before.split(/\r?\n/);
+            return new vscode.Position(parts.length - 1, parts[parts.length - 1].length);
+        },
+        offsetAt: (position: vscode.Position) => {
+            const safeLine = Math.max(0, Math.min(position.line, lines.length - 1));
+            let offset = 0;
+            for (let i = 0; i < safeLine; i++) {
+                offset += lines[i].length + 1;
+            }
+            return offset + Math.max(0, Math.min(position.character, lines[safeLine].length));
+        },
     } as unknown as vscode.TextDocument;
 }
