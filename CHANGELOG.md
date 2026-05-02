@@ -5,6 +5,9 @@
 ### Added
 - Add Go to Definition support for FXML `@resource` references such as `@image.png` and `@style.css`
 
+### Fixed
+- Corrected the checked-in VS Code debug launch mapping so `F5` breakpoints bind to the bundled extension code in `dist/`
+
 ## [1.0.4] - 2026-05-02
 
 ### Added

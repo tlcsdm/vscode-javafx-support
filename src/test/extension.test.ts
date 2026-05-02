@@ -32,6 +32,24 @@ suite('Extension Test Suite', () => {
         });
     });
 
+    test('Run Extension debug config should map breakpoints to the bundled extension output', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        assert.ok(extension);
+
+        const launchConfiguration = JSON.parse(
+            await fs.readFile(path.join(extension.extensionPath, '.vscode', 'launch.json'), 'utf8')
+        ) as {
+            configurations?: Array<{ name?: string; outFiles?: string[] }>;
+        };
+
+        const runExtensionConfiguration = launchConfiguration.configurations?.find(
+            configuration => configuration.name === 'Run Extension'
+        );
+
+        assert.ok(runExtensionConfiguration);
+        assert.deepStrictEqual(runExtensionConfiguration.outFiles, ['${workspaceFolder}/dist/**/*.js']);
+    });
+
     test('Should enable linked editing by default for FXML files', () => {
         const editorConfig = vscode.workspace.getConfiguration('editor', { languageId: 'fxml' });
 

@@ -105,6 +105,11 @@ npm run test
 npx @vscode/vsce package
 ```
 
+### Debugging
+
+- Press `F5` with the **Run Extension** launch configuration to debug the extension host
+- Breakpoints bind against the bundled extension output in `dist/**/*.js`, so the default watch task must stay running while you debug
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
