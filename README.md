@@ -15,27 +15,8 @@ A VS Code extension for JavaFX development with FXML support.
 - 🔎 **Find All References** - Press `Shift+F12` on an FXML `fx:id` to find `$fxId` usages in the current FXML file together with the matching controller field declaration
 - 🔍 **Workspace Symbols** - Press `Ctrl+T` / `Cmd+T` to search `fx:id` values and matching `@FXML` field names across the workspace
 - 💡 **FXML Hover** - Optionally show controller field and event handler comments on hover
+- 🎨 **JavaFX CSS IntelliSense** - Get `-fx-` property completions, enum-like value suggestions, and hover details inside `.css` files and FXML `style` attributes
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
-
-## Installation
-
-### From VS Code Marketplace
-
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Tlcsdm JavaFX Support"
-4. Click Install
-
-### From VSIX File
-
-1. Download the latest `.vsix` file from [Releases](https://github.com/tlcsdm/vscode-javafx-support/releases)
-2. Open VS Code
-3. Go to Extensions (Ctrl+Shift+X)
-4. Click the `...` menu and select "Install from VSIX..."
-5. Select the downloaded `.vsix` file
-
-### From Jenkins  
-Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-javafx-support/)
 
 ## Usage
 
@@ -91,6 +72,13 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - Missing controller event handlers such as `#handleClick` are reported as errors
 - Duplicate `fx:id` values in the same FXML file are reported as errors
 
+### JavaFX CSS IntelliSense
+
+- Type `-fx-` in a `.css` file or an FXML `style` attribute to see JavaFX-specific CSS properties such as `-fx-background-color`, `-fx-font-size`, and `-fx-text-fill`
+- After properties such as `-fx-alignment:`, completion suggests common enum-like values such as `CENTER` and `TOP_LEFT`
+- Selecting a JavaFX CSS value inserts one space after `:` and appends `;`
+- Hover a JavaFX CSS property to see its syntax, default value, and where it applies
+
 ## Configuration
 
 | Setting | Description | Default |
@@ -100,6 +88,26 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 | `tlcsdm.javafxSupport.outline.showFxId` | Show `fx:id` details in the FXML Outline view | `true` |
 | `tlcsdm.javafxSupport.outline.showText` | Show `text` details in the FXML Outline view | `true` |
 | `tlcsdm.javafxSupport.hover.delay` | Delay in milliseconds before showing FXML hover information | `300` |
+
+## Installation
+
+### From VS Code Marketplace
+
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "Tlcsdm JavaFX Support"
+4. Click Install
+
+### From VSIX File
+
+1. Download the latest `.vsix` file from [Releases](https://github.com/tlcsdm/vscode-javafx-support/releases)
+2. Open VS Code
+3. Go to Extensions (Ctrl+Shift+X)
+4. Click the `...` menu and select "Install from VSIX..."
+5. Select the downloaded `.vsix` file
+
+### From Jenkins  
+Download from [Jenkins](https://jenkins.tlcsdm.com/job/vscode-plugin/job/vscode-javafx-support/)
 
 ## Development
 
@@ -113,22 +121,14 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 ```bash
 # Install dependencies
 npm install
-
 # Compile
 npm run compile
-
 # Watch mode (for development)
 npm run watch
-
 # Lint
 npm run lint
-
-# Package
-npx @vscode/vsce package
-
 # Test
 npm run test
-
 # Package extension
 npx @vscode/vsce package
 ```

@@ -31,7 +31,8 @@
   "activationEvents": [
     "onLanguage:fxml",
     "onLanguage:java",
-    "onLanguage:xml"
+    "onLanguage:xml",
+    "onLanguage:css"
   ],
   "main": "./dist/extension.js",
   "contributes": {
