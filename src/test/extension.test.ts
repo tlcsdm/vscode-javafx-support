@@ -325,6 +325,26 @@ suite('Extension Test Suite', () => {
                 start: 5,
                 end: 9,
             },
+            {
+                text: [
+                    '&lt;?xml version="1.0" encoding="UTF-8"?&gt;',
+                    '',
+                    '&lt;?import javafx.scene.layout.FlowPane?&gt;',
+                    '&lt;?import javafx.scene.media.MediaView?&gt;',
+                ].join('\n'),
+                start: 2,
+                end: 3,
+            },
+            {
+                text: [
+                    '&amp;lt;?xml version="1.0" encoding="UTF-8"?&amp;gt;',
+                    '&amp;lt;?import javafx.scene.layout.HBox?&amp;gt;',
+                    '&amp;lt;?import javafx.scene.control.Label?&amp;gt;',
+                    '&amp;lt;?import javafx.scene.control.Button?&amp;gt;',
+                ].join('\n'),
+                start: 1,
+                end: 3,
+            },
         ];
 
         for (const { text, start, end } of documents) {
