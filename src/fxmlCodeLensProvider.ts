@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { classExtends } from './javaControllerResolver';
+import { getFxmlFilesForMember } from './fxmlControllerCache';
 
 /**
  * Provides CodeLens for @FXML annotated fields and methods in Java controller classes.
@@ -162,7 +162,7 @@ export async function findFxmlMemberLocation(
     isMethod: boolean,
     token: vscode.CancellationToken
 ): Promise<vscode.Location | undefined> {
-    const fxmlFiles = await vscode.workspace.findFiles('**/*.fxml', '**/node_modules/**');
+    const fxmlFiles = await getFxmlFilesForMember(controllerClassName, memberName, isMethod, token);
 
     for (const fxmlUri of fxmlFiles) {
         if (token.isCancellationRequested) {
@@ -174,16 +174,6 @@ export async function findFxmlMemberLocation(
         if (!location) {
             continue;
         }
-
-        const controllerInFxml = getControllerClassName(document.getText());
-
-        if (!controllerInFxml || (
-            controllerInFxml !== controllerClassName
-            && !await classExtends(controllerInFxml, controllerClassName, token)
-        )) {
-            continue;
-        }
-
         return location;
     }
 
@@ -217,11 +207,6 @@ function findMemberInFxml(
     }
 
     return undefined;
-}
-
-function getControllerClassName(text: string): string | undefined {
-    const match = text.match(/fx:controller\s*=\s*"([^"]+)"/);
-    return match ? match[1] : undefined;
 }
 
 function escapeRegex(str: string): string {

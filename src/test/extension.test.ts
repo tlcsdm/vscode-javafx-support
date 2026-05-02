@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
+import { resetFxmlControllerCacheForTests } from '../fxmlControllerCache';
 import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
@@ -14,6 +15,7 @@ import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
+const FXML_CONTROLLER_CACHE_TEMP_PREFIX = 'fxml-controller-cache-';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -286,6 +288,109 @@ suite('Extension Test Suite', () => {
                 }
             });
         } finally {
+            resetFxmlControllerCacheForTests();
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should reuse and refresh the cached FXML controller index', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_CACHE_TEMP_PREFIX));
+        try {
+            const controllerPath = path.join(tempDir, 'src', 'com', 'example', 'MainController.java');
+            const renamedControllerPath = path.join(tempDir, 'src', 'com', 'example', 'RenamedController.java');
+            const fxmlPath = path.join(tempDir, 'src', 'main.fxml');
+
+            await fs.mkdir(path.dirname(controllerPath), { recursive: true });
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(renamedControllerPath, [
+                'package com.example;',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                'public class RenamedController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            resetFxmlControllerCacheForTests();
+
+            let fxmlFindFilesCalls = 0;
+            await withMockFindFiles([controllerPath, renamedControllerPath, fxmlPath], async () => {
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(controllerPath));
+                const fieldLine = controllerDocument.lineAt(5).text;
+                const definition = await new ControllerDefinitionProvider().provideDefinition(
+                    controllerDocument,
+                    new vscode.Position(5, fieldLine.indexOf('submitButton')),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(definition instanceof vscode.Location);
+                assertFsPathEqual(definition.uri.fsPath, fxmlPath);
+                assert.strictEqual(fxmlFindFilesCalls, 1, 'the first lookup should populate the FXML cache once');
+
+                const cachedLocation = await findFxmlMemberLocation(
+                    'com.example.MainController',
+                    'submitButton',
+                    false,
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(cachedLocation instanceof vscode.Location);
+                assertFsPathEqual(cachedLocation.uri.fsPath, fxmlPath);
+                assert.strictEqual(fxmlFindFilesCalls, 1, 'subsequent lookups should reuse the cached FXML index');
+
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const edit = new vscode.WorkspaceEdit();
+                edit.replace(
+                    fxmlDocument.uri,
+                    fxmlDocument.lineAt(1).range,
+                    '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.RenamedController">'
+                );
+                const editApplied = await vscode.workspace.applyEdit(edit);
+                assert.strictEqual(editApplied, true);
+                await fxmlDocument.save();
+
+                await waitForCondition(async () => {
+                    const oldLocation = await findFxmlMemberLocation(
+                        'com.example.MainController',
+                        'submitButton',
+                        false,
+                        new vscode.CancellationTokenSource().token
+                    );
+                    return oldLocation === undefined;
+                });
+
+                const renamedLocation = await findFxmlMemberLocation(
+                    'com.example.RenamedController',
+                    'submitButton',
+                    false,
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(renamedLocation instanceof vscode.Location);
+                assertFsPathEqual(renamedLocation.uri.fsPath, fxmlPath);
+                assert.strictEqual(fxmlFindFilesCalls, 1, 'watcher updates should avoid a second full FXML scan');
+            }, pattern => {
+                if (pattern === '**/*.fxml') {
+                    fxmlFindFilesCalls++;
+                }
+            });
+        } finally {
+            resetFxmlControllerCacheForTests();
             await fs.rm(tempDir, { recursive: true, force: true });
         }
     });
@@ -911,6 +1016,21 @@ async function waitForDiagnostics(
     }
 
     return diagnostics;
+}
+
+async function waitForCondition(
+    predicate: () => Promise<boolean>,
+    timeoutMs = 5000
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (!await predicate()) {
+        if (Date.now() >= deadline) {
+            assert.fail('Timed out waiting for condition.');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 25));
+    }
 }
 
 async function withMockFindFiles(
