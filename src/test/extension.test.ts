@@ -274,6 +274,138 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(importRange!.end, 4);
     });
 
+    test('Should fold FXML import processing instructions around declarations and comments', () => {
+        const provider = new FxmlFoldingRangeProvider();
+        const token = new vscode.CancellationTokenSource().token;
+        const documents = [
+            {
+                text: [
+                    '<?xml version="1.0" encoding="UTF-8"?>',
+                    '<?import javafx.scene.layout.HBox?>',
+                    '<?import javafx.scene.control.Label?>',
+                    '<?import javafx.scene.control.Button?>',
+                    '<HBox spacing="10" alignment="CENTER_LEFT"',
+                    '      xmlns:fx="http://javafx.com/fxml">',
+                    '    <Label text="My Application" />',
+                    '    <Button text="Login" />',
+                    '    <Button text="Settings" />',
+                    '</HBox>',
+                ].join('\n'),
+                start: 1,
+                end: 3,
+            },
+            {
+                text: [
+                    '<?xml version="1.0" encoding="UTF-8"?>',
+                    '',
+                    '<?import javafx.scene.layout.FlowPane?>',
+                    '<?import javafx.scene.media.MediaView?>',
+                    '<!--',
+                    '  ~ Copyright',
+                    '  -->',
+                    '<FlowPane fx:id="rootFlowPane" xmlns="http://javafx.com/javafx"/>',
+                ].join('\n'),
+                start: 2,
+                end: 3,
+            },
+            {
+                text: [
+                    '<?xml version="1.0" encoding="UTF-8"?>',
+                    '',
+                    '<!--',
+                    '  ~ Copyright',
+                    '  -->',
+                    '<?import javafx.geometry.Insets?>',
+                    '<?import javafx.scene.control.Button?>',
+                    '<?import javafx.scene.control.CheckBox?>',
+                    '<?import javafx.scene.control.Label?>',
+                    '<?import javafx.scene.layout.AnchorPane?>',
+                    '<AnchorPane xmlns="http://javafx.com/javafx/8.0.171"/>',
+                ].join('\n'),
+                start: 5,
+                end: 9,
+            },
+        ];
+
+        for (const { text, start, end } of documents) {
+            const ranges = provider.provideFoldingRanges(
+                createMockFxmlDocument(text),
+                {},
+                token
+            );
+
+            assert.ok(
+                ranges.some(range =>
+                    range.kind === vscode.FoldingRangeKind.Imports &&
+                    range.start === start &&
+                    range.end === end
+                )
+            );
+        }
+    });
+
+    test('Should provide import folding ranges for untitled FXML documents', async () => {
+        const document = await vscode.workspace.openTextDocument({
+            language: 'fxml',
+            content: [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<?import javafx.scene.layout.HBox?>',
+                '<?import javafx.scene.control.Label?>',
+                '<?import javafx.scene.control.Button?>',
+                '<HBox spacing="10" alignment="CENTER_LEFT"',
+                '      xmlns:fx="http://javafx.com/fxml">',
+                '    <Label text="My Application" />',
+                '</HBox>',
+            ].join('\n'),
+        });
+
+        const ranges = await vscode.commands.executeCommand<vscode.FoldingRange[]>(
+            'vscode.executeFoldingRangeProvider',
+            document.uri
+        );
+
+        assert.ok(ranges.some(range =>
+            range.kind === vscode.FoldingRangeKind.Imports &&
+            range.start === 1 &&
+            range.end === 3
+        ));
+    });
+
+    test('Should provide import folding ranges for FXML files opened as XML', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xml-fxml-folding-'));
+        try {
+            const fxmlPath = path.join(tempDir, 'Sample.fxml');
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<?import javafx.scene.layout.HBox?>',
+                '<?import javafx.scene.control.Label?>',
+                '<?import javafx.scene.control.Button?>',
+                '<HBox spacing="10" alignment="CENTER_LEFT"',
+                '      xmlns:fx="http://javafx.com/fxml">',
+                '    <Label text="My Application" />',
+                '</HBox>',
+            ].join('\n'));
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+            const xmlDocument = await vscode.languages.setTextDocumentLanguage(document, 'xml');
+            const ranges = await vscode.commands.executeCommand<vscode.FoldingRange[]>(
+                'vscode.executeFoldingRangeProvider',
+                xmlDocument.uri
+            );
+
+            assert.ok(ranges.some(range =>
+                range.kind === vscode.FoldingRangeKind.Imports &&
+                range.start === 1 &&
+                range.end === 3
+            ));
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should fold nested elements and multiline FXML tags', () => {
         const provider = new FxmlFoldingRangeProvider();
         const document = createMockFxmlDocument([
