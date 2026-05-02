@@ -8,8 +8,12 @@ import * as vscode from 'vscode';
 export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
     async provideCodeLenses(
         document: vscode.TextDocument,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): Promise<vscode.CodeLens[]> {
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
         const codeLenses: vscode.CodeLens[] = [];
         const text = document.getText();
 
@@ -24,6 +28,10 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
         }
 
         for (let i = 0; i < document.lineCount; i++) {
+            if (token.isCancellationRequested) {
+                return [];
+            }
+
             const lineText = document.lineAt(i).text;
 
             if (lineText.trim().startsWith('@FXML')) {
@@ -35,6 +43,10 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
                 if (!memberName) {
                     // Find the next non-annotation, non-empty line (the actual member declaration)
                     for (let j = i + 1; j < document.lineCount && j <= i + 3; j++) {
+                        if (token.isCancellationRequested) {
+                            return [];
+                        }
+
                         const nextLine = document.lineAt(j).text.trim();
                         if (nextLine !== '' && !nextLine.startsWith('@')) {
                             memberLineText = document.lineAt(j).text;

@@ -9,8 +9,12 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): Promise<vscode.Definition | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         // Check if the current line or preceding line has @FXML annotation
         const currentLine = document.lineAt(position).text;
         const memberName = this.getMemberNameAtPosition(currentLine, position.character);
@@ -32,7 +36,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        return this.findInFxmlFiles(controllerClassName, memberName, isMethod);
+        return this.findInFxmlFiles(controllerClassName, memberName, isMethod, token);
     }
 
     /**
@@ -123,12 +127,30 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
     private async findInFxmlFiles(
         controllerClassName: string,
         memberName: string,
-        isMethod: boolean
+        isMethod: boolean,
+        token: vscode.CancellationToken
     ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const fxmlFiles = await vscode.workspace.findFiles('**/*.fxml', '**/node_modules/**');
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         for (const fxmlUri of fxmlFiles) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const document = await vscode.workspace.openTextDocument(fxmlUri);
+
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const text = document.getText();
 
             // Check if this FXML uses the specified controller
@@ -139,13 +161,13 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
             // Search for the member in the FXML
             if (isMethod) {
                 // Look for event handler references like onAction="#methodName"
-                const location = this.findEventHandlerInFxml(document, fxmlUri, memberName);
+                const location = this.findEventHandlerInFxml(document, fxmlUri, memberName, token);
                 if (location) {
                     return location;
                 }
             } else {
                 // Look for fx:id="fieldName"
-                const location = this.findFxIdInFxml(document, fxmlUri, memberName);
+                const location = this.findFxIdInFxml(document, fxmlUri, memberName, token);
                 if (location) {
                     return location;
                 }
@@ -161,11 +183,16 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
     private findEventHandlerInFxml(
         document: vscode.TextDocument,
         uri: vscode.Uri,
-        methodName: string
+        methodName: string,
+        token: vscode.CancellationToken
     ): vscode.Location | undefined {
         const pattern = new RegExp(`="#${this.escapeRegex(methodName)}"`);
 
         for (let i = 0; i < document.lineCount; i++) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const lineText = document.lineAt(i).text;
             const match = pattern.exec(lineText);
             if (match) {
@@ -183,11 +210,16 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
     private findFxIdInFxml(
         document: vscode.TextDocument,
         uri: vscode.Uri,
-        fieldName: string
+        fieldName: string,
+        token: vscode.CancellationToken
     ): vscode.Location | undefined {
         const pattern = new RegExp(`fx:id="${this.escapeRegex(fieldName)}"`);
 
         for (let i = 0; i < document.lineCount; i++) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
             const lineText = document.lineAt(i).text;
             const match = pattern.exec(lineText);
             if (match) {
