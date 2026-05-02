@@ -89,6 +89,7 @@
     },
     "configurationDefaults": {
       "[fxml]": {
+        "editor.linkedEditing": true,
         "editor.semanticHighlighting.enabled": false
       },
       "files.associations": {

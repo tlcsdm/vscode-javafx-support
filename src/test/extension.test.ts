@@ -5,6 +5,7 @@ import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
+import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -25,6 +26,12 @@ suite('Extension Test Suite', () => {
         return vscode.commands.getCommands(true).then(commands => {
             assert.ok(commands.includes('tlcsdm.javafxSupport.openInSceneBuilder'));
         });
+    });
+
+    test('Should enable linked editing by default for FXML files', () => {
+        const editorConfig = vscode.workspace.getConfiguration('editor', { languageId: 'fxml' });
+
+        assert.strictEqual(editorConfig.get('linkedEditing'), true);
     });
 
     test('Should provide semantic SymbolKind values for FXML outline', () => {
@@ -72,27 +79,143 @@ suite('Extension Test Suite', () => {
     });
 
     test('Providers should return early when cancellation is already requested', async () => {
-        const token = createCancelledToken();
+        const cancelledToken = createCancelledToken();
         const document = createThrowingTextDocument();
         const position = new vscode.Position(0, 0);
         const range = new vscode.Range(position, position);
         const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
 
-        const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(document, token);
+        const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(document, cancelledToken);
         assert.deepStrictEqual(codeLenses, []);
 
-        const controllerDefinition = await new ControllerDefinitionProvider().provideDefinition(document, position, token);
+        const controllerDefinition = await new ControllerDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(controllerDefinition, undefined);
 
-        const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, token);
+        const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(fxmlDefinition, undefined);
 
-        const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, token);
+        const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
         assert.deepStrictEqual(symbols, []);
 
         const formatter = new FxmlFormattingEditProvider();
-        assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, token), []);
-        assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, token), []);
+        assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, cancelledToken), []);
+        assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, cancelledToken), []);
+
+        const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, cancelledToken);
+        assert.strictEqual(result, undefined);
+    });
+
+    test('Should provide linked editing ranges for matching FXML tag names', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<VBox xmlns:fx="http://javafx.com/fxml/1">',
+            '  <user>',
+            '    <Label text="Name"/>',
+            '  </user>',
+            '</VBox>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(1, 4),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges.length, 2);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'user');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'user');
+        assert.strictEqual(ranges!.wordPattern?.source, '[:A-Za-z_](?:[\\w.:]|-)*');
+    });
+
+    test('Should provide linked editing ranges for FXML property tags such as bottom', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<BorderPane>',
+            '  <bottom>',
+            '  </bottom>',
+            '</BorderPane>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(1, 4),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges.length, 2);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'bottom');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'bottom');
+    });
+
+    test('Should provide linked editing ranges at the end of nested FXML tag names', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<BorderPane>',
+            '  <top>',
+            '    <VBox fx:id="vboxTop" spacing="5">',
+            '      <HBox spacing="8" alignment="CENTER_LEFT">',
+            '        <Label text="%figma.url"/>',
+            '      </HBox>',
+            '    </VBox>',
+            '  </top>',
+            '</BorderPane>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(3, 11),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges.length, 2);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'HBox');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'HBox');
+    });
+
+    test('Should match the nearest nested closing tag for linked editing', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<root>',
+            '  <item>',
+            '    <item>',
+            '    </item>',
+            '  </item>',
+            '</root>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(2, 6),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges[0].start.line, 2);
+        assert.strictEqual(ranges!.ranges[1].start.line, 3);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'item');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'item');
+    });
+
+    test('Should ignore self-closing tags and non-tag positions for linked editing', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<VBox>',
+            '  <Label text="Name"/>',
+            '</VBox>',
+        ].join('\n'));
+        const token = new vscode.CancellationTokenSource().token;
+
+        assert.strictEqual(
+            provider.provideLinkedEditingRanges(document, new vscode.Position(1, 4), token),
+            undefined
+        );
+        assert.strictEqual(
+            provider.provideLinkedEditingRanges(document, new vscode.Position(1, 15), token),
+            undefined
+        );
     });
 });
 
@@ -150,6 +273,11 @@ function createCancelledToken(): vscode.CancellationToken {
     const source = new vscode.CancellationTokenSource();
     source.cancel();
     return source.token;
+}
+
+function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {
+    const text = document.getText();
+    return text.slice(document.offsetAt(range.start), document.offsetAt(range.end));
 }
 
 function createThrowingTextDocument(): vscode.TextDocument {
