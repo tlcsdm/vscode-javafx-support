@@ -44,10 +44,11 @@ const JAVAFX_HOVER_SUMMARIES: Readonly<Record<string, string>> = {
     vbox: 'A layout pane that lays out its children in a single vertical column.',
 };
 
-const JAVA_MEMBER_MODIFIERS = '(?:public|protected|private|static|final|abstract|synchronized|native|strictfp|default)';
-const JAVA_FIELD_MODIFIERS = '(?:public|protected|private|static|final|transient|volatile)';
-const JAVA_TYPE_PATTERN = '[\\w.$<>\\[\\],?\\s]+';
-const JAVA_METHOD_TYPE_PREFIX = `(?:<[^>]+>\\s*)?${JAVA_TYPE_PATTERN}`;
+const JAVA_SHARED_MODIFIERS = '(?:public|protected|private|static|final)';
+const JAVA_MEMBER_MODIFIERS = `(?:${JAVA_SHARED_MODIFIERS}|abstract|synchronized|native|strictfp|default)`;
+const JAVA_FIELD_MODIFIERS = `(?:${JAVA_SHARED_MODIFIERS}|transient|volatile)`;
+const JAVA_REQUIRED_TYPE_PATTERN = '[\\w.$<>\\[\\],?]+(?:\\s+[\\w.$<>\\[\\],?]+)*';
+const JAVA_METHOD_TYPE_PREFIX = `(?:<[^>]+>\\s*)?${JAVA_REQUIRED_TYPE_PATTERN}`;
 
 interface HoverTarget {
     kind: 'tag' | 'field' | 'method';
@@ -357,7 +358,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
             '^(?:',
             `${JAVA_FIELD_MODIFIERS}\\s+`,
             ')*(?<type>',
-            `${JAVA_TYPE_PATTERN}?`,
+            JAVA_REQUIRED_TYPE_PATTERN,
             ')\\s+',
             `${this.escapeRegex(fieldName)}$`,
         ].join(''));
@@ -405,7 +406,11 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
             return false;
         }
 
-        return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
+        return !this.containsInvalidMemberPrefixKeyword(prefix);
+    }
+
+    private containsInvalidMemberPrefixKeyword(prefix: string): boolean {
+        return /\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
     }
 
     private stripLeadingAnnotations(line: string): string {
@@ -413,7 +418,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
     }
 
     private normalizeJavafxTagName(tagName: string): string {
-        return tagName.split('.').pop()?.toLowerCase() ?? tagName.toLowerCase();
+        return (tagName.split('.').pop() || tagName).toLowerCase();
     }
 
     private getSimpleClassName(className: string): string {

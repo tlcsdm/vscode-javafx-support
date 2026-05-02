@@ -124,6 +124,7 @@
           "type": "number",
           "default": 300,
           "minimum": 0,
+          "maximum": 5000,
           "description": "%config.hover.delay.description%"
         }
       }
