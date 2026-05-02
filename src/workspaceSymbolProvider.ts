@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
 
@@ -5,6 +6,8 @@ const FXML_GLOB = '**/*.fxml';
 const JAVA_GLOB = '**/*.java';
 const EXCLUDE_GLOB = '**/node_modules/**';
 const MAX_ANNOTATION_LOOKAHEAD = 3;
+// Capture group 1 is the element name, group 2 is the quote character, and
+// capture group 3 is the fx:id value.
 const FXML_FX_ID_PATTERN = /<([A-Za-z_][\w:.-]*)\b[^>]*\bfx:id\s*=\s*(["'])([^"']+)\2/gs;
 
 export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<vscode.SymbolInformation> {
@@ -61,7 +64,12 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
                     continue;
                 }
 
-                const valueOffset = match.index + match[0].lastIndexOf(fxId);
+                const quotedValueOffset = match[0].indexOf(`${match[2]}${fxId}${match[2]}`);
+                if (quotedValueOffset < 0) {
+                    continue;
+                }
+
+                const valueOffset = match.index + quotedValueOffset + match[2].length;
                 const range = new vscode.Range(
                     document.positionAt(valueOffset),
                     document.positionAt(valueOffset + fxId.length)
@@ -92,7 +100,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
             }
 
             const document = await vscode.workspace.openTextDocument(uri);
-            const containerName = getFullyQualifiedClassName(document) ?? uri.path.split('/').pop() ?? 'Java';
+            const containerName = (getFullyQualifiedClassName(document) ?? path.basename(uri.fsPath)) || 'Java';
 
             for (let i = 0; i < document.lineCount; i++) {
                 if (token.isCancellationRequested) {
@@ -104,9 +112,9 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
                     continue;
                 }
 
-                const sameLineField = this.extractFieldName(lineText);
+                const sameLineField = this.extractFieldDeclaration(lineText);
                 if (sameLineField) {
-                    this.addJavaFieldSymbol(symbols, document, uri, containerName, i, sameLineField, query);
+                    this.addJavaFieldSymbol(symbols, uri, containerName, i, sameLineField, query);
                     continue;
                 }
 
@@ -124,9 +132,9 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
                         continue;
                     }
 
-                    const fieldName = this.extractFieldName(candidateLine);
-                    if (fieldName) {
-                        this.addJavaFieldSymbol(symbols, document, uri, containerName, j, fieldName, query);
+                    const fieldDeclaration = this.extractFieldDeclaration(candidateLine);
+                    if (fieldDeclaration) {
+                        this.addJavaFieldSymbol(symbols, uri, containerName, j, fieldDeclaration, query);
                     }
                     break;
                 }
@@ -138,20 +146,14 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
 
     private addJavaFieldSymbol(
         symbols: vscode.SymbolInformation[],
-        document: vscode.TextDocument,
         uri: vscode.Uri,
         containerName: string,
         lineNumber: number,
-        fieldName: string,
+        fieldDeclaration: { name: string; startCharacter: number },
         query: string
     ): void {
+        const { name: fieldName, startCharacter } = fieldDeclaration;
         if (!this.matchesQuery(fieldName, query)) {
-            return;
-        }
-
-        const lineText = document.lineAt(lineNumber).text;
-        const startCharacter = lineText.lastIndexOf(fieldName);
-        if (startCharacter < 0) {
             return;
         }
 
@@ -168,25 +170,22 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         ));
     }
 
-    private extractFieldName(line: string): string | undefined {
-        const declaration = line.split('//', 1)[0];
-        if (declaration.includes('(')) {
-            return undefined;
-        }
-
-        const terminatorIndex = declaration.search(/[;=,]/);
+    private extractFieldDeclaration(line: string): { name: string; startCharacter: number } | undefined {
+        const terminatorIndex = line.search(/[;=]/);
         if (terminatorIndex < 0) {
             return undefined;
         }
 
-        let fieldName: string | undefined;
-        for (const match of declaration.matchAll(/\b[A-Za-z_$][\w$]*\b/g)) {
-            if (match.index !== undefined && match.index < terminatorIndex) {
-                fieldName = match[0];
-            }
+        const declarationPrefix = line.slice(0, terminatorIndex);
+        const fieldMatch = /([A-Za-z_$][\w$]*)\s*$/.exec(declarationPrefix);
+        if (!fieldMatch || fieldMatch.index === undefined) {
+            return undefined;
         }
 
-        return fieldName;
+        return {
+            name: fieldMatch[1],
+            startCharacter: fieldMatch.index,
+        };
     }
 
     private matchesQuery(name: string, query: string): boolean {
