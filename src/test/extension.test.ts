@@ -134,16 +134,19 @@ suite('Extension Test Suite', () => {
             await fs.writeFile(image, '');
             await fs.writeFile(
                 mainFxml,
-                '<VBox stylesheets="@styles/main.css" tooltip="@styles/missing.css"><ImageView image="@images/logo.png" accessibleText="logo.png"/></VBox>'
+                [
+                    '<VBox stylesheets="@styles/main.css" tooltip="@styles/missing.css">',
+                    '  <ImageView image="@images/logo.png" accessibleText="logo.png"/>',
+                    '</VBox>',
+                ].join('\n')
             );
 
             const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
-            const line = document.lineAt(0).text;
             const provider = new FxmlDefinitionProvider();
 
             const stylesheetLocation = await provider.provideDefinition(
                 document,
-                new vscode.Position(0, line.indexOf('styles/main.css')),
+                new vscode.Position(0, document.lineAt(0).text.indexOf('styles/main.css')),
                 new vscode.CancellationTokenSource().token
             );
             assert.ok(stylesheetLocation instanceof vscode.Location);
@@ -152,7 +155,7 @@ suite('Extension Test Suite', () => {
 
             const imageLocation = await provider.provideDefinition(
                 document,
-                new vscode.Position(0, line.indexOf('images/logo.png')),
+                new vscode.Position(1, document.lineAt(1).text.indexOf('images/logo.png')),
                 new vscode.CancellationTokenSource().token
             );
             assert.ok(imageLocation instanceof vscode.Location);
@@ -162,7 +165,7 @@ suite('Extension Test Suite', () => {
             assert.strictEqual(
                 await provider.provideDefinition(
                     document,
-                    new vscode.Position(0, line.indexOf('styles/missing.css')),
+                    new vscode.Position(0, document.lineAt(0).text.indexOf('styles/missing.css')),
                     new vscode.CancellationTokenSource().token
                 ),
                 undefined
@@ -171,7 +174,7 @@ suite('Extension Test Suite', () => {
             assert.strictEqual(
                 await provider.provideDefinition(
                     document,
-                    new vscode.Position(0, line.lastIndexOf('logo.png')),
+                    new vscode.Position(1, document.lineAt(1).text.lastIndexOf('logo.png')),
                     new vscode.CancellationTokenSource().token
                 ),
                 undefined

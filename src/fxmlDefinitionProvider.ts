@@ -3,6 +3,7 @@ import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
 // Matches quoted FXML attribute values that resolve resources relative to the current document,
 // for example image="@images/logo.png" or stylesheets="@styles/main.css".
+// Capture group 1 is the quote character and capture group 2 is the @resource value.
 const resourceAttributePattern = String.raw`\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1`;
 
 /**
