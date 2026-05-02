@@ -14,6 +14,7 @@ import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvide
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
+import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
@@ -359,6 +360,280 @@ suite('Extension Test Suite', () => {
                 assert.ok(controllerReference);
                 assert.deepStrictEqual(controllerReference!.range.start, new vscode.Position(7, 19));
             });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should provide case-insensitive workspace symbols for matching fx:id and @FXML fields', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '',
+                '    private Button ignoredButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button',
+                '      fx:id="submitButton"',
+                '      text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath, fxmlPath], async () => {
+                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+                    'vscode.executeWorkspaceSymbolProvider',
+                    'SUBMIT'
+                );
+
+                assert.ok(symbols);
+
+                const matchingSymbols = symbols!.filter(symbol =>
+                    ['Main.fxml', 'MainController.java'].includes(path.basename(symbol.location.uri.fsPath))
+                );
+                assert.strictEqual(matchingSymbols.length, 2);
+
+                const javaSymbol = matchingSymbols.find(symbol =>
+                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(controllerPath)
+                );
+                assert.ok(javaSymbol);
+                assert.strictEqual(javaSymbol!.name, 'submitButton');
+                assert.strictEqual(javaSymbol!.kind, vscode.SymbolKind.Field);
+                assert.strictEqual(javaSymbol!.containerName, 'com.example.MainController');
+                assert.deepStrictEqual(javaSymbol!.location.range.start, new vscode.Position(7, 19));
+
+                const fxmlSymbol = matchingSymbols.find(symbol =>
+                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(fxmlPath)
+                );
+                assert.ok(fxmlSymbol);
+                assert.strictEqual(fxmlSymbol!.name, 'submitButton');
+                assert.strictEqual(fxmlSymbol!.kind, vscode.SymbolKind.Variable);
+                assert.strictEqual(fxmlSymbol!.containerName, 'Button');
+                assert.deepStrictEqual(fxmlSymbol!.location.range.start, new vscode.Position(3, 13));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should ignore Java build directories when providing workspace symbols', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-build-'));
+        try {
+            const sourceJavaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const generatedJavaDir = path.join(tempDir, 'target', 'generated-sources', 'annotations', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(sourceJavaDir, { recursive: true });
+            await fs.mkdir(generatedJavaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const sourceControllerPath = path.join(sourceJavaDir, 'MainController.java');
+            const generatedControllerPath = path.join(generatedJavaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(sourceControllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(generatedControllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button generatedButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([sourceControllerPath, generatedControllerPath, fxmlPath], async () => {
+                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+                    'vscode.executeWorkspaceSymbolProvider',
+                    'button'
+                );
+
+                assert.ok(symbols);
+                const javaSymbols = symbols.filter(symbol =>
+                    symbol.kind === vscode.SymbolKind.Field
+                );
+                const fxmlSymbols = symbols.filter(symbol =>
+                    symbol.kind === vscode.SymbolKind.Variable
+                );
+
+                assert.strictEqual(javaSymbols.length, 1);
+                assertFsPathEqual(javaSymbols[0].location.uri.fsPath, sourceControllerPath);
+                assert.strictEqual(javaSymbols[0].name, 'submitButton');
+
+                assert.strictEqual(fxmlSymbols.length, 1);
+                assertFsPathEqual(fxmlSymbols[0].location.uri.fsPath, fxmlPath);
+                assert.strictEqual(fxmlSymbols[0].name, 'submitButton');
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should ignore FXML build directories when providing workspace symbols', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-fxml-build-'));
+        try {
+            const sourceFxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            const generatedFxmlDir = path.join(tempDir, 'target', 'classes', 'com', 'example');
+            await fs.mkdir(sourceFxmlDir, { recursive: true });
+            await fs.mkdir(generatedFxmlDir, { recursive: true });
+
+            const sourceFxmlPath = path.join(sourceFxmlDir, 'Light.fxml');
+            const generatedFxmlPath = path.join(generatedFxmlDir, 'Light.fxml');
+
+            await fs.writeFile(sourceFxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1">',
+                '  <Label fx:id="lblActualLevel" text="Actual level" />',
+                '</VBox>',
+            ].join('\n'));
+            await fs.writeFile(generatedFxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1">',
+                '  <Label fx:id="lblActualLevel" text="Generated level" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const provider = new WorkspaceSymbolProvider();
+            const openedFiles: string[] = [];
+            try {
+                await withMockFindFiles([sourceFxmlPath, generatedFxmlPath], async () => {
+                    await withMockOpenTextDocument(async () => {
+                        const symbols = await provider.provideWorkspaceSymbols(
+                            'actuallevel',
+                            new vscode.CancellationTokenSource().token
+                        );
+
+                        assert.strictEqual(symbols.length, 1);
+                        assertFsPathEqual(symbols[0].location.uri.fsPath, sourceFxmlPath);
+                        assert.strictEqual(symbols[0].name, 'lblActualLevel');
+                        assert.strictEqual(symbols[0].kind, vscode.SymbolKind.Variable);
+
+                        assert.ok(openedFiles.includes(normalizeFsPath(sourceFxmlPath)));
+                        assert.ok(!openedFiles.includes(normalizeFsPath(generatedFxmlPath)));
+                    }, uri => {
+                        openedFiles.push(normalizeFsPath(uri.fsPath));
+                    });
+                });
+            } finally {
+                provider.dispose();
+            }
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should reuse cached workspace symbols for repeated queries', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-cache-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const provider = new WorkspaceSymbolProvider();
+            const openedFiles: string[] = [];
+            try {
+                await withMockFindFiles([controllerPath, fxmlPath], async () => {
+                    await withMockOpenTextDocument(async () => {
+                        const firstQuerySymbols = await provider.provideWorkspaceSymbols(
+                            'sub',
+                            new vscode.CancellationTokenSource().token
+                        );
+                        const openCountsAfterFirstQuery = new Map<string, number>();
+                        for (const filePath of openedFiles) {
+                            openCountsAfterFirstQuery.set(filePath, (openCountsAfterFirstQuery.get(filePath) ?? 0) + 1);
+                        }
+
+                        const secondQuerySymbols = await provider.provideWorkspaceSymbols(
+                            'submit',
+                            new vscode.CancellationTokenSource().token
+                        );
+
+                        assert.strictEqual(firstQuerySymbols.length, 2);
+                        assert.strictEqual(secondQuerySymbols.length, 2);
+
+                        const openCounts = new Map<string, number>();
+                        for (const filePath of openedFiles) {
+                            openCounts.set(filePath, (openCounts.get(filePath) ?? 0) + 1);
+                        }
+
+                        assert.strictEqual(
+                            openCounts.get(normalizeFsPath(controllerPath)),
+                            openCountsAfterFirstQuery.get(normalizeFsPath(controllerPath))
+                        );
+                        assert.strictEqual(
+                            openCounts.get(normalizeFsPath(fxmlPath)),
+                            openCountsAfterFirstQuery.get(normalizeFsPath(fxmlPath))
+                        );
+                    }, uri => {
+                        openedFiles.push(normalizeFsPath(uri.fsPath));
+                    });
+                });
+            } finally {
+                provider.dispose();
+            }
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
@@ -835,6 +1110,9 @@ suite('Extension Test Suite', () => {
 
         const foldingRanges = new FxmlFoldingRangeProvider().provideFoldingRanges(document, {}, cancelledToken);
         assert.deepStrictEqual(foldingRanges, []);
+
+        const workspaceSymbols = await new WorkspaceSymbolProvider().provideWorkspaceSymbols('submit', cancelledToken);
+        assert.deepStrictEqual(workspaceSymbols, []);
     });
 
     test('Should fold consecutive FXML import processing instructions as imports', () => {
@@ -1244,6 +1522,31 @@ async function withMockFindFiles(
         await run();
     } finally {
         workspace.findFiles = originalFindFiles;
+    }
+}
+
+async function withMockOpenTextDocument(
+    run: () => Promise<void>,
+    onOpenTextDocument?: (uri: vscode.Uri) => void
+): Promise<void> {
+    const workspace = vscode.workspace as unknown as { openTextDocument: typeof vscode.workspace.openTextDocument };
+    const originalOpenTextDocument = workspace.openTextDocument;
+    const mockedOpenTextDocument = ((
+        uriOrFileName: vscode.Uri | string,
+        options?: { encoding?: string; language?: string }
+    ) => {
+        const uri = uriOrFileName instanceof vscode.Uri ? uriOrFileName : vscode.Uri.file(uriOrFileName);
+        onOpenTextDocument?.(uri);
+        return uriOrFileName instanceof vscode.Uri
+            ? originalOpenTextDocument(uriOrFileName)
+            : originalOpenTextDocument(uriOrFileName, options);
+    }) as typeof vscode.workspace.openTextDocument;
+    workspace.openTextDocument = mockedOpenTextDocument;
+
+    try {
+        await run();
+    } finally {
+        workspace.openTextDocument = originalOpenTextDocument;
     }
 }
 
