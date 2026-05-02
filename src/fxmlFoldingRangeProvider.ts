@@ -79,7 +79,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         for (let line = 0; line < document.lineCount; line++) {
             const lineText = document.lineAt(line).text;
-            if (this.isImportProcessingInstruction(lineText)) {
+            if (/^\s*<\?import\b.*\?>\s*$/.test(lineText)) {
                 blockStart ??= line;
                 blockEnd = line;
             } else {
@@ -89,13 +89,6 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         closeBlock();
         return ranges;
-    }
-
-    private isImportProcessingInstruction(lineText: string): boolean {
-        const normalizedLineText = lineText
-            .replace(/&(?:amp;)?lt;/g, '<')
-            .replace(/&(?:amp;)?gt;/g, '>');
-        return /^\s*<\?import\b.*\?>\s*$/.test(normalizedLineText);
     }
 
     private findTagStart(
