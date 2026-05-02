@@ -36,6 +36,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const fxmlFoldingSelector: vscode.DocumentSelector = [
         fxmlSelector,
         { language: 'fxml', scheme: 'untitled' },
+        { language: 'xml', scheme: 'file', pattern: '**/*.fxml' },
     ];
 
     // Register FXML → Controller definition provider

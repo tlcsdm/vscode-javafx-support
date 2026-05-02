@@ -371,6 +371,41 @@ suite('Extension Test Suite', () => {
         ));
     });
 
+    test('Should provide import folding ranges for FXML files opened as XML', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xml-fxml-folding-'));
+        try {
+            const fxmlPath = path.join(tempDir, 'Sample.fxml');
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<?import javafx.scene.layout.HBox?>',
+                '<?import javafx.scene.control.Label?>',
+                '<?import javafx.scene.control.Button?>',
+                '<HBox spacing="10" alignment="CENTER_LEFT"',
+                '      xmlns:fx="http://javafx.com/fxml">',
+                '    <Label text="My Application" />',
+                '</HBox>',
+            ].join('\n'));
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+            const xmlDocument = await vscode.languages.setTextDocumentLanguage(document, 'xml');
+            const ranges = await vscode.commands.executeCommand<vscode.FoldingRange[]>(
+                'vscode.executeFoldingRangeProvider',
+                xmlDocument.uri
+            );
+
+            assert.ok(ranges.some(range =>
+                range.kind === vscode.FoldingRangeKind.Imports &&
+                range.start === 1 &&
+                range.end === 3
+            ));
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should fold nested elements and multiline FXML tags', () => {
         const provider = new FxmlFoldingRangeProvider();
         const document = createMockFxmlDocument([
