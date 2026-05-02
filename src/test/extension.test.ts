@@ -1,4 +1,7 @@
 import * as assert from 'assert';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
 import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
@@ -78,6 +81,41 @@ suite('Extension Test Suite', () => {
         const children = symbols[0].children.find(child => child.name === 'children');
         assert.ok(children);
         assert.strictEqual(children!.kind, vscode.SymbolKind.Field);
+    });
+
+    test('Should navigate fx:include source values relative to the current FXML file', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-include-'));
+        try {
+            const viewsDir = path.join(tempDir, 'views');
+            const controlsDir = path.join(viewsDir, 'controls');
+            await fs.mkdir(controlsDir, { recursive: true });
+
+            const mainFxml = path.join(viewsDir, 'Main.fxml');
+            const includedFxml = path.join(controlsDir, 'Toolbar.fxml');
+            await fs.writeFile(includedFxml, '<ToolBar/>');
+            await fs.writeFile(mainFxml, '<VBox><fx:include fx:id="toolbar" source="controls/Toolbar.fxml"/></VBox>');
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+            const position = new vscode.Position(0, document.lineAt(0).text.indexOf('Toolbar.fxml'));
+            const provider = new FxmlDefinitionProvider();
+            const location = await provider.provideDefinition(
+                document,
+                position,
+                new vscode.CancellationTokenSource().token
+            );
+
+            assert.ok(location instanceof vscode.Location);
+            assert.strictEqual(location.uri.fsPath, includedFxml);
+            assert.deepStrictEqual(location.range.start, new vscode.Position(0, 0));
+
+            const idPosition = new vscode.Position(0, document.lineAt(0).text.indexOf('toolbar'));
+            assert.strictEqual(
+                await provider.provideDefinition(document, idPosition, new vscode.CancellationTokenSource().token),
+                undefined
+            );
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('Providers should return early when cancellation is already requested', async () => {
