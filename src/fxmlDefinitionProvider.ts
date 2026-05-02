@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
@@ -121,31 +122,22 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = className.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
+        const classInfo = await findJavaClass(className, token);
 
-        if (token.isCancellationRequested) {
-            return undefined;
-        }
-
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
+        if (classInfo) {
             // Find the class declaration line
-            for (let i = 0; i < document.lineCount; i++) {
+            for (let i = 0; i < classInfo.document.lineCount; i++) {
                 if (token.isCancellationRequested) {
                     return undefined;
                 }
 
-                const lineText = document.lineAt(i).text;
+                const lineText = classInfo.document.lineAt(i).text;
                 const simpleClassName = className.split('.').pop() || className;
                 if (lineText.includes(`class ${simpleClassName}`)) {
-                    return new vscode.Location(files[0], new vscode.Position(i, lineText.indexOf(`class ${simpleClassName}`)));
+                    return new vscode.Location(classInfo.uri, new vscode.Position(i, lineText.indexOf(`class ${simpleClassName}`)));
                 }
             }
-            return new vscode.Location(files[0], new vscode.Position(0, 0));
+            return new vscode.Location(classInfo.uri, new vscode.Position(0, 0));
         }
 
         return undefined;
@@ -163,23 +155,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
-
-        if (token.isCancellationRequested) {
-            return undefined;
-        }
-
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
-
-            return this.findMemberInJavaFile(document, files[0], methodName, true, token);
-        }
-
-        return undefined;
+        return this.findMemberInControllerHierarchy(controllerClassName, methodName, true, token);
     }
 
     /**
@@ -194,23 +170,38 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
+        return this.findMemberInControllerHierarchy(controllerClassName, fieldName, false, token);
+    }
 
-        if (token.isCancellationRequested) {
+    private async findMemberInControllerHierarchy(
+        controllerClassName: string,
+        memberName: string,
+        isMethod: boolean,
+        token: vscode.CancellationToken,
+        visited = new Set<string>()
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested || visited.has(controllerClassName)) {
             return undefined;
         }
 
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
+        visited.add(controllerClassName);
 
-            return this.findMemberInJavaFile(document, files[0], fieldName, false, token);
+        const classInfo = await findJavaClass(controllerClassName, token);
+        if (!classInfo) {
+            return undefined;
         }
 
-        return undefined;
+        const location = this.findMemberInJavaFile(classInfo.document, classInfo.uri, memberName, isMethod, token);
+        if (location || token.isCancellationRequested) {
+            return location;
+        }
+
+        const superClassName = getSuperclassName(classInfo.document);
+        if (!superClassName) {
+            return undefined;
+        }
+
+        return this.findMemberInControllerHierarchy(superClassName, memberName, isMethod, token, visited);
     }
 
     /**
@@ -239,9 +230,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             }
 
             if (isMethod) {
-                // Look for method declaration
-                const methodPattern = new RegExp(`\\b${this.escapeRegex(memberName)}\\s*\\(`);
-                const methodMatch = methodPattern.exec(lineText);
+                const methodMatch = this.getMethodDeclarationMatch(lineText, memberName);
                 if (methodMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, methodMatch.index));
                     // Prefer @FXML-annotated method (annotation should be on preceding line)
@@ -253,9 +242,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
                     }
                 }
             } else {
-                // Look for field declaration
-                const fieldPattern = new RegExp(`\\b${this.escapeRegex(memberName)}\\s*[;=,)]`);
-                const fieldMatch = fieldPattern.exec(lineText);
+                const fieldMatch = this.getFieldDeclarationMatch(lineText, memberName);
                 if (fieldMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, fieldMatch.index));
                     // Prefer @FXML-annotated field
@@ -275,6 +262,47 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return bestMatch;
+    }
+
+    private getMethodDeclarationMatch(line: string, methodName: string): RegExpExecArray | undefined {
+        const methodPattern = new RegExp(`\\b${this.escapeRegex(methodName)}\\s*\\(`);
+        const methodMatch = methodPattern.exec(line);
+        if (!methodMatch) {
+            return undefined;
+        }
+
+        const prefix = line.slice(0, methodMatch.index).trimEnd();
+        if (!this.isValidMemberDeclarationPrefix(prefix)) {
+            return undefined;
+        }
+
+        const lastPrefixChar = prefix.trimEnd().at(-1);
+        return lastPrefixChar && (/\w/.test(lastPrefixChar) || lastPrefixChar === '>' || lastPrefixChar === ']')
+            ? methodMatch
+            : undefined;
+    }
+
+    private getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
+        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,)])`);
+        const fieldMatch = fieldPattern.exec(line);
+        if (!fieldMatch) {
+            return undefined;
+        }
+
+        const prefix = line.slice(0, fieldMatch.index).trim();
+        if (!this.isValidMemberDeclarationPrefix(prefix)) {
+            return undefined;
+        }
+
+        return fieldMatch;
+    }
+
+    private isValidMemberDeclarationPrefix(prefix: string): boolean {
+        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
+            return false;
+        }
+
+        return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
     }
 
     private escapeRegex(str: string): string {

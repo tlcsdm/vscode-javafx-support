@@ -10,6 +10,7 @@
 ### Fixed
 - Enabled linked editing by default for FXML files so matching tag renames take effect immediately
 - Added `CancellationToken` checks to navigation, CodeLens, outline, and formatting providers to avoid returning stale results from canceled requests
+- FXML/controller navigation now resolves `@FXML` members inherited from controller superclasses
 
 ## [1.0.3] - 2026-04-02
 

@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
-import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
+import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
@@ -105,7 +105,7 @@ suite('Extension Test Suite', () => {
             );
 
             assert.ok(location instanceof vscode.Location);
-            assert.strictEqual(location.uri.fsPath, includedFxml);
+            assertFsPathEqual(location.uri.fsPath, includedFxml);
             assert.deepStrictEqual(location.range.start, new vscode.Position(0, 0));
 
             const idPosition = new vscode.Position(0, document.lineAt(0).text.indexOf('toolbar'));
@@ -113,6 +113,108 @@ suite('Extension Test Suite', () => {
                 await provider.provideDefinition(document, idPosition, new vscode.CancellationTokenSource().token),
                 undefined
             );
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should navigate inherited @FXML controller members', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-inherited-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const baseController = path.join(javaDir, 'BaseController.java');
+            const mainController = path.join(javaDir, 'MainController.java');
+            const unrelatedFxml = path.join(fxmlDir, 'Unrelated.fxml');
+            const mainFxml = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(baseController, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class BaseController {',
+                '    @FXML',
+                '    protected Button sharedButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainController, [
+                'package com.example;',
+                '',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController extends BaseController {',
+                '    public void initialize() {',
+                '        sharedButton = new Button();',
+                '    }',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainFxml, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="sharedButton" text="Shared" />',
+                '</VBox>',
+            ].join('\n'));
+            await fs.writeFile(unrelatedFxml, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.UnrelatedController">',
+                '  <Button fx:id="otherButton" text="Other" />',
+                '</VBox>',
+            ].join('\n'));
+
+            let trackCodeLensJavaLookups = false;
+            let codeLensJavaLookups = 0;
+            await withMockFindFiles([baseController, mainController, unrelatedFxml, mainFxml], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+                const fxmlLine = fxmlDocument.lineAt(2).text;
+                const fxmlToJava = await new FxmlDefinitionProvider().provideDefinition(
+                    fxmlDocument,
+                    new vscode.Position(2, fxmlLine.indexOf('sharedButton')),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(fxmlToJava instanceof vscode.Location);
+                assertFsPathEqual(fxmlToJava.uri.fsPath, baseController);
+                assert.deepStrictEqual(fxmlToJava.range.start, new vscode.Position(7, 21));
+
+                const baseDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(baseController));
+                const fieldLine = baseDocument.lineAt(7).text;
+                const javaToFxml = await new ControllerDefinitionProvider().provideDefinition(
+                    baseDocument,
+                    new vscode.Position(7, fieldLine.indexOf('sharedButton')),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(javaToFxml instanceof vscode.Location);
+                assertFsPathEqual(javaToFxml.uri.fsPath, mainFxml);
+                assert.deepStrictEqual(javaToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
+
+                const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(
+                    baseDocument,
+                    new vscode.CancellationTokenSource().token
+                );
+                assert.ok(codeLenses.some(codeLens => codeLens.command?.arguments?.[1] === 'sharedButton'));
+
+                trackCodeLensJavaLookups = true;
+                const codeLensToFxml = await findFxmlMemberLocation(
+                    'com.example.BaseController',
+                    'sharedButton',
+                    false,
+                    new vscode.CancellationTokenSource().token
+                );
+                assert.ok(codeLensToFxml instanceof vscode.Location);
+                assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
+                assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
+                assert.strictEqual(codeLensJavaLookups, 1, 'only FXML files containing the target member should trigger Java inheritance lookup');
+            }, pattern => {
+                if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
+                    codeLensJavaLookups++;
+                }
+            });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
@@ -367,6 +469,44 @@ function createCancelledToken(): vscode.CancellationToken {
     const source = new vscode.CancellationTokenSource();
     source.cancel();
     return source.token;
+}
+
+async function withMockFindFiles(
+    files: string[],
+    run: () => Promise<void>,
+    onFindFiles?: (pattern: string) => void
+): Promise<void> {
+    const workspace = vscode.workspace as unknown as { findFiles: typeof vscode.workspace.findFiles };
+    const originalFindFiles = workspace.findFiles;
+    workspace.findFiles = async (include: vscode.GlobPattern) => {
+        const pattern = typeof include === 'string' ? include : include.pattern;
+        onFindFiles?.(pattern);
+        if (pattern === '**/*.fxml') {
+            return files.filter(file => file.endsWith('.fxml')).map(file => vscode.Uri.file(file));
+        }
+
+        const suffix = pattern.replace(/^\*\*\//, '');
+        return files.filter(file => toGlobPath(file).endsWith(suffix)).map(file => vscode.Uri.file(file));
+    };
+
+    try {
+        await run();
+    } finally {
+        workspace.findFiles = originalFindFiles;
+    }
+}
+
+function assertFsPathEqual(actual: string, expected: string): void {
+    assert.strictEqual(normalizeFsPath(actual), normalizeFsPath(expected));
+}
+
+function normalizeFsPath(filePath: string): string {
+    const normalized = path.normalize(filePath);
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
+function toGlobPath(filePath: string): string {
+    return filePath.replace(/\\/g, '/');
 }
 
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {
