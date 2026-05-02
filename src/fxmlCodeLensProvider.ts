@@ -184,7 +184,7 @@ export async function findFxmlMemberLocation(
         let targetChar = 0;
 
         if (isMethod) {
-            const pattern = new RegExp(`=\\s*"#${escapeRegex(memberName)}"`);
+            const pattern = new RegExp(`=\\s*"#(${escapeRegex(memberName)})"`);
             for (let i = 0; i < document.lineCount; i++) {
                 if (token.isCancellationRequested) {
                     return undefined;
@@ -193,7 +193,7 @@ export async function findFxmlMemberLocation(
                 const match = pattern.exec(document.lineAt(i).text);
                 if (match) {
                     targetLine = i;
-                    targetChar = match.index + match[0].indexOf(memberName);
+                    targetChar = match.index + match[0].indexOf(match[1]);
                     break;
                 }
             }
