@@ -765,28 +765,67 @@ suite('Extension Test Suite', () => {
             undefined
         );
 
-        const completionsAfterFx = await provider.provideCompletionItems(
+        const completionsAfterFxResult = await provider.provideCompletionItems(
             document,
             new vscode.Position(0, document.lineAt(0).text.indexOf('-fx') + '-fx'.length),
             new vscode.CancellationTokenSource().token
         );
+        const completionsAfterFx = getCompletionItems(completionsAfterFxResult);
 
-        assert.ok(Array.isArray(completionsAfterFx));
+        assert.ok(completionsAfterFxResult instanceof vscode.CompletionList);
+        assert.strictEqual(completionsAfterFxResult.isIncomplete, true);
         assert.strictEqual(JAVA_FX_CSS_PROPERTY_DEFINITIONS.length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
-        assert.strictEqual((completionsAfterFx as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
+        assert.strictEqual(completionsAfterFx.length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
 
         const dashDocument = createMockCssDocument('.root { -fx- }');
-        const completionsAfterFxDash = await provider.provideCompletionItems(
+        const completionsAfterFxDashResult = await provider.provideCompletionItems(
             dashDocument,
             new vscode.Position(0, dashDocument.lineAt(0).text.indexOf('-fx-') + '-fx-'.length),
             new vscode.CancellationTokenSource().token
         );
+        const completionsAfterFxDash = getCompletionItems(completionsAfterFxDashResult);
 
-        assert.ok(Array.isArray(completionsAfterFxDash));
-        assert.strictEqual((completionsAfterFxDash as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
-        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-alignment'));
-        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
-        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-text-fill'));
+        assert.ok(completionsAfterFxDashResult instanceof vscode.CompletionList);
+        assert.strictEqual(completionsAfterFxDash.length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
+
+        const alignment = completionsAfterFxDash.find(item => item.label === '-fx-alignment');
+        assert.ok(alignment);
+        assert.strictEqual(alignment?.filterText, '-fx-alignment');
+        assert.match(alignment?.sortText ?? '', /^0000-javafx-css-/);
+        assert.ok(completionsAfterFxDash.some(item => item.label === '-fx-background-color'));
+        assert.ok(completionsAfterFxDash.some(item => item.label === '-fx-text-fill'));
+    });
+
+    test('Should prioritize JavaFX CSS completions in CSS files with built-in suggestions', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'javafx-css-completion-'));
+        const cssFile = path.join(tempDir, 'style.css');
+
+        try {
+            await fs.writeFile(cssFile, [
+                '.root {',
+                '  -fx-',
+                '}',
+            ].join('\n'));
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(cssFile));
+            const line = document.lineAt(1).text;
+            const completions = await vscode.commands.executeCommand<vscode.CompletionList>(
+                'vscode.executeCompletionItemProvider',
+                document.uri,
+                new vscode.Position(1, line.length),
+                '-'
+            );
+
+            const labels = completions.items.map(item => getCompletionLabel(item));
+            const javaFxIndex = labels.indexOf('-fx-alignment');
+            const builtInIndex = labels.findIndex(label => label.startsWith('-ms-flex'));
+
+            assert.ok(javaFxIndex >= 0);
+            if (builtInIndex >= 0) {
+                assert.ok(javaFxIndex < builtInIndex);
+            }
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('Should provide JavaFX CSS value completions for enum-like properties', async () => {
@@ -805,7 +844,7 @@ suite('Extension Test Suite', () => {
 
         assert.ok(Array.isArray(completions));
 
-        const items = completions as vscode.CompletionItem[];
+        const items = getCompletionItems(completions);
         const center = items.find(item => item.label === 'CENTER');
         const topLeft = items.find(item => item.label === 'TOP_LEFT');
 
@@ -824,7 +863,7 @@ suite('Extension Test Suite', () => {
         );
         assert.ok(Array.isArray(spacedCompletions));
 
-        const spacedCenter = (spacedCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        const spacedCenter = getCompletionItems(spacedCompletions).find(item => item.label === 'CENTER');
         assert.ok(spacedCenter);
         assert.strictEqual(spacedCenter?.insertText, ' center;');
         assert.ok(spacedCenter?.range instanceof vscode.Range);
@@ -838,7 +877,7 @@ suite('Extension Test Suite', () => {
         );
         assert.ok(Array.isArray(semicolonCompletions));
 
-        const semicolonCenter = (semicolonCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        const semicolonCenter = getCompletionItems(semicolonCompletions).find(item => item.label === 'CENTER');
         assert.ok(semicolonCenter);
         assert.strictEqual(semicolonCenter?.insertText, ' center');
         assert.ok(semicolonCenter?.range instanceof vscode.Range);
@@ -856,8 +895,8 @@ suite('Extension Test Suite', () => {
             new vscode.CancellationTokenSource().token
         );
 
-        assert.ok(Array.isArray(propertyCompletions));
-        assert.ok((propertyCompletions as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
+        assert.ok(propertyCompletions instanceof vscode.CompletionList);
+        assert.ok(getCompletionItems(propertyCompletions).some(item => item.label === '-fx-background-color'));
 
         const valueDocument = createMockFxmlDocument('<Button style="-fx-alignment:c"/>');
         const valueLine = valueDocument.lineAt(0).text;
@@ -869,7 +908,7 @@ suite('Extension Test Suite', () => {
 
         assert.ok(Array.isArray(valueCompletions));
 
-        const center = (valueCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        const center = getCompletionItems(valueCompletions).find(item => item.label === 'CENTER');
         assert.ok(center);
         assert.strictEqual(center?.insertText, ' center;');
         assert.ok(center?.range instanceof vscode.Range);
@@ -1623,6 +1662,17 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
 
 function createMockCssDocument(text: string): vscode.TextDocument {
     return createMockDocument(text, 'css', 'test.css');
+}
+
+function getCompletionItems(
+    completions: vscode.CompletionItem[] | vscode.CompletionList | null | undefined
+): vscode.CompletionItem[] {
+    assert.ok(completions);
+    return Array.isArray(completions) ? completions : completions.items;
+}
+
+function getCompletionLabel(item: vscode.CompletionItem): string {
+    return typeof item.label === 'string' ? item.label : item.label.label;
 }
 
 function createCancelledToken(): vscode.CancellationToken {

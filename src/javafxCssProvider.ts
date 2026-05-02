@@ -45,6 +45,7 @@ const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
 const STYLE_ATTRIBUTE_VALUE_PREFIX_PATTERN = /\bstyle\s*=\s*(["'])((?:\\.|(?!\1).)*)$/i;
 const TRAILING_SEMICOLON_PATTERN = /^\s*;/;
 const CSS_VALUE_SEPARATOR = ' ';
+const JAVA_FX_CSS_PROPERTY_SORT_PREFIX = '0000-javafx-css-';
 
 const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
     ...definition,
@@ -58,7 +59,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         document: vscode.TextDocument,
         position: vscode.Position,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
         if (token.isCancellationRequested) {
             return undefined;
         }
@@ -73,16 +74,19 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
             return undefined;
         }
 
-        return PROPERTY_DEFINITIONS
+        const items = PROPERTY_DEFINITIONS
             .filter(definition => definition.name.startsWith(propertyPrefix.prefix))
             .map(definition => {
                 const item = new vscode.CompletionItem(definition.name, vscode.CompletionItemKind.Property);
                 item.detail = 'JavaFX CSS property';
                 item.insertText = definition.name;
+                item.filterText = definition.name;
                 item.range = propertyPrefix.range;
+                item.sortText = `${JAVA_FX_CSS_PROPERTY_SORT_PREFIX}${definition.name}`;
                 item.documentation = createPropertyDocumentation(definition);
                 return item;
             });
+        return new vscode.CompletionList(items, true);
     }
 
     private createValueCompletionItems(context: ValueCompletionContext): vscode.CompletionItem[] | undefined {
