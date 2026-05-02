@@ -33,6 +33,10 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     const fxmlSelector: vscode.DocumentSelector = { language: 'fxml', scheme: 'file' };
+    const fxmlFoldingSelector: vscode.DocumentSelector = [
+        fxmlSelector,
+        { language: 'fxml', scheme: 'untitled' },
+    ];
 
     // Register FXML → Controller definition provider
     context.subscriptions.push(
@@ -84,7 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
     context.subscriptions.push(
         vscode.languages.registerFoldingRangeProvider(
-            fxmlSelector,
+            fxmlFoldingSelector,
             new FxmlFoldingRangeProvider()
         )
     );
