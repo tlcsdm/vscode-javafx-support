@@ -93,10 +93,8 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
     private isImportProcessingInstruction(lineText: string): boolean {
         const normalizedLineText = lineText
-            .replaceAll('&amp;lt;', '&lt;')
-            .replaceAll('&amp;gt;', '&gt;')
-            .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>');
+            .replace(/&(?:amp;)?lt;/g, '<')
+            .replace(/&(?:amp;)?gt;/g, '>');
         return /^\s*<\?import\b.*\?>\s*$/.test(normalizedLineText);
     }
 
