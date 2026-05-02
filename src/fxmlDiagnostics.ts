@@ -171,10 +171,14 @@ export async function collectFxmlDiagnostics(
         }
     }
 
-    return diagnostics.sort((left, right) =>
-        left.range.start.line - right.range.start.line
-        || left.range.start.character - right.range.start.character
-    );
+    return diagnostics.sort((left, right) => {
+        const lineDifference = left.range.start.line - right.range.start.line;
+        if (lineDifference !== 0) {
+            return lineDifference;
+        }
+
+        return left.range.start.character - right.range.start.character;
+    });
 }
 
 function findAttributeOccurrences(
