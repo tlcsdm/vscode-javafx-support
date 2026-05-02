@@ -85,10 +85,6 @@ npm run compile
 # Watch mode (for development)
 npm run watch
 
-# Press F5 in VS Code to run the extension.
-# The default build task uses esbuild watch mode and starts debugging
-# automatically after the first watch build finishes.
-
 # Lint
 npm run lint
 
