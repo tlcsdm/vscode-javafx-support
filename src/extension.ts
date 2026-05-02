@@ -10,6 +10,7 @@ import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
 import { FxmlDiagnosticProvider } from './fxmlDiagnostics';
 import { registerFxmlControllerCache } from './fxmlControllerCache';
 import { FxmlHoverProvider } from './fxmlHoverProvider';
+import { FxmlReferenceProvider } from './fxmlReferenceProvider';
 
 /**
  * Extension activation
@@ -88,6 +89,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerHoverProvider(
             fxmlSelector,
             new FxmlHoverProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerReferenceProvider(
+            fxmlSelector,
+            new FxmlReferenceProvider()
         )
     );
     context.subscriptions.push(

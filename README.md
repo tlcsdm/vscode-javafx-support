@@ -12,6 +12,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 🚨 **FXML Diagnostics** - Surface missing controller classes and duplicate `fx:id` values directly in the Problems panel
 - 🔗 **FXML → Controller & Resource Navigation** - Ctrl+Click on `fx:controller`, `onAction`, `fx:id`, `@image.png`, or `@style.css` in FXML to jump to the corresponding controller code or referenced resource file
 - 🔗 **Controller → FXML Navigation** - Ctrl+Click on `@FXML` annotated variables or methods in the Controller class to jump to the corresponding location in the FXML file
+- 🔎 **Find All References** - Press `Shift+F12` on an FXML `fx:id` to find `$fxId` usages in the current FXML file together with the matching controller field declaration
 - 💡 **FXML Hover** - Optionally show controller field and event handler comments on hover
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
@@ -64,6 +65,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - Ctrl+Click on `fx:id="myButton"` to jump to the `@FXML` annotated field
 - Ctrl+Click on `onAction="#handleClick"` to jump to the `@FXML` annotated method
 - Ctrl+Click on `image="@images/logo.png"` or `stylesheets="@styles/main.css"` to open the referenced resource file relative to the current FXML file
+- Press `Shift+F12` on `fx:id="myButton"` to list `$myButton` usages in the current FXML document and the matching controller field declaration
 
 **Controller → FXML:**
 - Ctrl+Click on an `@FXML` annotated field to jump to the `fx:id` in the FXML file

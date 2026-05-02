@@ -13,6 +13,7 @@ import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 import { FxmlHoverProvider } from '../fxmlHoverProvider';
+import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
@@ -290,6 +291,75 @@ suite('Extension Test Suite', () => {
             });
         } finally {
             resetFxmlControllerCacheForTests();
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should find FXML variable references and the matching controller field from fx:id', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-references-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitBtn;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitBtn" text="Submit" />',
+                '  <Label labelFor="$submitBtn" />',
+                '  <VBox userData="$submitBtn.text" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath], async () => {
+                const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const fxIdLine = document.lineAt(2).text;
+                const references = await vscode.commands.executeCommand<vscode.Location[]>(
+                    'vscode.executeReferenceProvider',
+                    document.uri,
+                    new vscode.Position(2, fxIdLine.indexOf('submitBtn'))
+                );
+
+                assert.ok(references);
+                assert.strictEqual(references.length, 3);
+
+                const fxmlReferences = references.filter(reference =>
+                    normalizeFsPath(reference.uri.fsPath) === normalizeFsPath(fxmlPath)
+                );
+                assert.strictEqual(fxmlReferences.length, 2);
+                assert.deepStrictEqual(
+                    fxmlReferences.map(reference => reference.range.start),
+                    [
+                        new vscode.Position(3, document.lineAt(3).text.indexOf('$submitBtn')),
+                        new vscode.Position(4, document.lineAt(4).text.indexOf('$submitBtn')),
+                    ]
+                );
+
+                const controllerReference = references.find(reference =>
+                    normalizeFsPath(reference.uri.fsPath) === normalizeFsPath(controllerPath)
+                );
+                assert.ok(controllerReference);
+                assert.deepStrictEqual(controllerReference!.range.start, new vscode.Position(7, 19));
+            });
+        } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
     });
@@ -741,6 +811,14 @@ suite('Extension Test Suite', () => {
 
         const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(fxmlDefinition, undefined);
+
+        const references = await new FxmlReferenceProvider().provideReferences(
+            document,
+            position,
+            { includeDeclaration: true },
+            cancelledToken
+        );
+        assert.strictEqual(references, undefined);
 
         const hover = await new FxmlHoverProvider().provideHover(document, position, cancelledToken);
         assert.strictEqual(hover, undefined);
