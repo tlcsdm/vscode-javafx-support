@@ -161,7 +161,7 @@ suite('Extension Test Suite', () => {
             ].join('\n'));
             await fs.writeFile(unrelatedFxml, [
                 '<?xml version="1.0" encoding="UTF-8"?>',
-                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.UnrelatedController">',
                 '  <Button fx:id="otherButton" text="Other" />',
                 '</VBox>',
             ].join('\n'));
@@ -209,7 +209,7 @@ suite('Extension Test Suite', () => {
                 assert.ok(codeLensToFxml instanceof vscode.Location);
                 assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
-                assert.strictEqual(codeLensJavaLookups, 1);
+                assert.strictEqual(codeLensJavaLookups, 1, 'only FXML files containing the target member should trigger Java inheritance lookup');
             }, pattern => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
