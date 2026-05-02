@@ -20,7 +20,7 @@ export class FxmlLinkedEditingRangeProvider implements vscode.LinkedEditingRange
         document: vscode.TextDocument,
         position: vscode.Position,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.LinkedEditingRanges> {
+    ): vscode.LinkedEditingRanges | undefined {
         if (token.isCancellationRequested) {
             return undefined;
         }

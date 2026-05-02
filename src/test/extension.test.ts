@@ -95,11 +95,11 @@ suite('Extension Test Suite', () => {
         assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, token), []);
         assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, token), []);
 
-        const linkedEditingRanges = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, token);
-        assert.strictEqual(linkedEditingRanges, undefined);
+        const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, token);
+        assert.strictEqual(result, undefined);
     });
 
-    test('Should provide linked editing ranges for matching FXML tag names', async () => {
+    test('Should provide linked editing ranges for matching FXML tag names', () => {
         const provider = new FxmlLinkedEditingRangeProvider();
         const document = createMockFxmlDocument([
             '<VBox xmlns:fx="http://javafx.com/fxml/1">',
@@ -109,12 +109,10 @@ suite('Extension Test Suite', () => {
             '</VBox>',
         ].join('\n'));
 
-        const ranges = await Promise.resolve(
-            provider.provideLinkedEditingRanges(
-                document,
-                new vscode.Position(1, 4),
-                new vscode.CancellationTokenSource().token
-            )
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(1, 4),
+            new vscode.CancellationTokenSource().token
         );
 
         assert.ok(ranges);
@@ -124,7 +122,7 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(ranges!.wordPattern?.source, '[:A-Za-z_][\\w.:-]*');
     });
 
-    test('Should match the nearest nested closing tag for linked editing', async () => {
+    test('Should match the nearest nested closing tag for linked editing', () => {
         const provider = new FxmlLinkedEditingRangeProvider();
         const document = createMockFxmlDocument([
             '<root>',
@@ -135,12 +133,10 @@ suite('Extension Test Suite', () => {
             '</root>',
         ].join('\n'));
 
-        const ranges = await Promise.resolve(
-            provider.provideLinkedEditingRanges(
-                document,
-                new vscode.Position(2, 6),
-                new vscode.CancellationTokenSource().token
-            )
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(2, 6),
+            new vscode.CancellationTokenSource().token
         );
 
         assert.ok(ranges);
