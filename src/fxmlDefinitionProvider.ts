@@ -272,11 +272,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         const prefix = line.slice(0, methodMatch.index).trimEnd();
-        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
-            return undefined;
-        }
-
-        if (/\b(?:if|for|while|switch|catch|new|return|throw)\s*$/.test(prefix)) {
+        if (!this.isValidMemberDeclarationPrefix(prefix)) {
             return undefined;
         }
 
@@ -291,15 +287,19 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         const prefix = line.slice(0, fieldMatch.index).trim();
-        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
-            return undefined;
-        }
-
-        if (/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix)) {
+        if (!this.isValidMemberDeclarationPrefix(prefix)) {
             return undefined;
         }
 
         return fieldMatch;
+    }
+
+    private isValidMemberDeclarationPrefix(prefix: string): boolean {
+        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
+            return false;
+        }
+
+        return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
     }
 
     private escapeRegex(str: string): string {
