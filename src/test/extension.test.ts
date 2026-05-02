@@ -320,7 +320,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Should report missing controller members and missing resource bundle keys', async () => {
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-diagnostics-members-'));
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-controller-diagnostics-'));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
             const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
@@ -454,7 +454,7 @@ suite('Extension Test Suite', () => {
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
         await extension?.activate();
 
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-diagnostics-refresh-'));
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-controller-refresh-'));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
             const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');

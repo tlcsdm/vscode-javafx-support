@@ -4,6 +4,12 @@ import { findJavaClass, getSuperclassName, type JavaClassInfo } from './javaCont
 const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
 const MAX_FXML_ANNOTATION_DISTANCE = 2;
+// Matches FXML attribute assignments whose value starts with a single '%' resource-bundle reference.
+const RESOURCE_BUNDLE_ATTRIBUTE_PATTERN = /\b[\w:.-]+\s*=\s*(["'])%(?!%)([^"']+)\1/g;
+// Matches Java String constant declarations with optional access modifiers and any static/final ordering.
+const JAVA_STRING_CONSTANT_PATTERN = /\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"([^"]+)"/g;
+// Matches ResourceBundle.getBundle(...) calls and captures either a literal base name or a String constant name.
+const RESOURCE_BUNDLE_GET_BUNDLE_PATTERN = /\bResourceBundle\s*\.\s*getBundle\s*\(\s*("([^"]+)"|(\w+))/g;
 
 interface AttributeOccurrence {
     value: string;
@@ -232,7 +238,7 @@ export async function collectFxmlDiagnostics(
             return sortDiagnostics(diagnostics);
         }
 
-        const resourceKeyOccurrences = findAttributeOccurrences(document, text, /\b[\w:.-]+\s*=\s*(["'])%(?!%)([^"']+)\1/g);
+        const resourceKeyOccurrences = findAttributeOccurrences(document, text, RESOURCE_BUNDLE_ATTRIBUTE_PATTERN);
         for (const occurrence of resourceKeyOccurrences) {
             if (resourceBundleKeys.has(occurrence.value)) {
                 continue;
@@ -422,12 +428,12 @@ async function collectResourceBundleBaseNames(
 
 function extractResourceBundleBaseNames(text: string): string[] {
     const stringConstants = new Map<string, string>();
-    for (const match of text.matchAll(/\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"([^"]+)"/g)) {
+    for (const match of text.matchAll(JAVA_STRING_CONSTANT_PATTERN)) {
         stringConstants.set(match[1], match[2]);
     }
 
     const bundleNames = new Set<string>();
-    for (const match of text.matchAll(/\bResourceBundle\s*\.\s*getBundle\s*\(\s*("([^"]+)"|(\w+))/g)) {
+    for (const match of text.matchAll(RESOURCE_BUNDLE_GET_BUNDLE_PATTERN)) {
         const literalName = match[2];
         const constantName = match[3];
         const resolvedBundleName = literalName || (constantName ? stringConstants.get(constantName) : undefined);
