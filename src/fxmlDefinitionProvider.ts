@@ -3,7 +3,7 @@ import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
 // Matches quoted FXML attribute values that resolve resources relative to the current document,
 // for example image="@images/logo.png" or stylesheets="@styles/main.css".
-const resourceAttributePattern = /\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1/g;
+const resourceAttributePattern = String.raw`\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1`;
 
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
@@ -93,12 +93,13 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     private getResourceReferenceAtPosition(line: string, charPos: number): string | undefined {
-        const pattern = new RegExp(resourceAttributePattern);
+        const pattern = new RegExp(resourceAttributePattern, 'g');
         let match;
         while ((match = pattern.exec(line)) !== null) {
             const valueStart = match.index + match[0].indexOf(match[2]);
             const valueEnd = valueStart + match[2].length;
             if (charPos >= valueStart && charPos <= valueEnd) {
+                // JavaFX uses @@ to escape a literal @ in attribute values, so those should not resolve as resources.
                 return match[2].startsWith('@@') ? undefined : match[2].slice(1);
             }
         }
