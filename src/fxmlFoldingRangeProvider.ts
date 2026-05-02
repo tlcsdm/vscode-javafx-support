@@ -79,7 +79,7 @@ export class FxmlFoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         for (let line = 0; line < document.lineCount; line++) {
             const lineText = document.lineAt(line).text;
-            if (/^\s*<\?import\b.*\?>\s*$/.test(lineText) || /^\s*&lt;\?import\b.*\?(?:>|&gt;)\s*$/.test(lineText)) {
+            if (/^\s*<\?import\b.*\?>\s*$/.test(lineText)) {
                 blockStart ??= line;
                 blockEnd = line;
             } else {

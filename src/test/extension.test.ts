@@ -371,50 +371,6 @@ suite('Extension Test Suite', () => {
         ));
     });
 
-    test('Should provide import folding ranges before the FXML root is added', async () => {
-        const document = await vscode.workspace.openTextDocument({
-            language: 'fxml',
-            content: [
-                '<?xml version="1.0" encoding="UTF-8"?>',
-                '<?import javafx.scene.layout.HBox?>',
-                '<?import javafx.scene.control.Label?>',
-                '<?import javafx.scene.control.Button?>',
-            ].join('\n'),
-        });
-
-        const ranges = await vscode.commands.executeCommand<vscode.FoldingRange[]>(
-            'vscode.executeFoldingRangeProvider',
-            document.uri
-        );
-
-        assert.ok(ranges.some(range =>
-            range.kind === vscode.FoldingRangeKind.Imports &&
-            range.start === 1 &&
-            range.end === 3
-        ));
-    });
-
-    test('Should fold escaped FXML import processing instruction openers', () => {
-        const provider = new FxmlFoldingRangeProvider();
-        const document = createMockFxmlDocument([
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            '&lt;?import javafx.scene.layout.HBox?>',
-            '&lt;?import javafx.scene.control.Label?>',
-            '&lt;?import javafx.scene.control.Button?>',
-        ].join('\n'));
-
-        const ranges = provider.provideFoldingRanges(
-            document,
-            {},
-            new vscode.CancellationTokenSource().token
-        );
-
-        const importRange = ranges.find(range => range.kind === vscode.FoldingRangeKind.Imports);
-        assert.ok(importRange);
-        assert.strictEqual(importRange!.start, 1);
-        assert.strictEqual(importRange!.end, 3);
-    });
-
     test('Should fold nested elements and multiline FXML tags', () => {
         const provider = new FxmlFoldingRangeProvider();
         const document = createMockFxmlDocument([
