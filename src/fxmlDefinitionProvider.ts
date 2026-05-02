@@ -276,11 +276,14 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        return /\b[\w$<>[\].?]+\s*$/.test(prefix) ? methodMatch : undefined;
+        const lastPrefixChar = prefix.trimEnd().at(-1);
+        return lastPrefixChar && (/\w/.test(lastPrefixChar) || lastPrefixChar === '>' || lastPrefixChar === ']')
+            ? methodMatch
+            : undefined;
     }
 
     private getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
-        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,])`);
+        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,)])`);
         const fieldMatch = fieldPattern.exec(line);
         if (!fieldMatch) {
             return undefined;
