@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [1.0.4] - 2026-05-02
 
 ### Added
 - Linked editing for matching FXML start/end tags so renaming `<Label>` also updates `</Label>`
