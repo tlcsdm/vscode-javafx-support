@@ -118,6 +118,72 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should navigate inherited @FXML controller members', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-inherited-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const baseController = path.join(javaDir, 'BaseController.java');
+            const mainController = path.join(javaDir, 'MainController.java');
+            const mainFxml = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(baseController, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class BaseController {',
+                '    @FXML',
+                '    protected Button sharedButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainController, [
+                'package com.example;',
+                '',
+                'public class MainController extends BaseController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainFxml, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="sharedButton" text="Shared" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([baseController, mainController, mainFxml], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+                const fxmlLine = fxmlDocument.lineAt(2).text;
+                const fxmlToJava = await new FxmlDefinitionProvider().provideDefinition(
+                    fxmlDocument,
+                    new vscode.Position(2, fxmlLine.indexOf('sharedButton')),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(fxmlToJava instanceof vscode.Location);
+                assert.strictEqual(fxmlToJava.uri.fsPath, baseController);
+                assert.deepStrictEqual(fxmlToJava.range.start, new vscode.Position(7, 21));
+
+                const baseDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(baseController));
+                const fieldLine = baseDocument.lineAt(7).text;
+                const javaToFxml = await new ControllerDefinitionProvider().provideDefinition(
+                    baseDocument,
+                    new vscode.Position(7, fieldLine.indexOf('sharedButton')),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(javaToFxml instanceof vscode.Location);
+                assert.strictEqual(javaToFxml.uri.fsPath, mainFxml);
+                assert.deepStrictEqual(javaToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Providers should return early when cancellation is already requested', async () => {
         const cancelledToken = createCancelledToken();
         const document = createThrowingTextDocument();
@@ -367,6 +433,26 @@ function createCancelledToken(): vscode.CancellationToken {
     const source = new vscode.CancellationTokenSource();
     source.cancel();
     return source.token;
+}
+
+async function withMockFindFiles(files: string[], run: () => Promise<void>): Promise<void> {
+    const workspace = vscode.workspace as unknown as { findFiles: typeof vscode.workspace.findFiles };
+    const originalFindFiles = workspace.findFiles;
+    workspace.findFiles = async (include: vscode.GlobPattern) => {
+        const pattern = typeof include === 'string' ? include : include.pattern;
+        if (pattern === '**/*.fxml') {
+            return files.filter(file => file.endsWith('.fxml')).map(file => vscode.Uri.file(file));
+        }
+
+        const suffix = pattern.replace(/^\*\*\//, '');
+        return files.filter(file => file.endsWith(suffix)).map(file => vscode.Uri.file(file));
+    };
+
+    try {
+        await run();
+    } finally {
+        workspace.findFiles = originalFindFiles;
+    }
 }
 
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {

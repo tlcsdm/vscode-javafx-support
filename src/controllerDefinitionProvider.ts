@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { classExtends, getFullyQualifiedClassName } from './javaControllerResolver';
 
 /**
  * Provides "Go to Definition" from Java controller classes to FXML files.
@@ -106,19 +107,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
      * Get the fully qualified class name from the Java source file
      */
     private getFullyQualifiedClassName(document: vscode.TextDocument): string | undefined {
-        const text = document.getText();
-
-        // Extract package name
-        const packageMatch = text.match(/package\s+([\w.]+)\s*;/);
-        const packageName = packageMatch ? packageMatch[1] : '';
-
-        // Extract class name
-        const classMatch = text.match(/class\s+(\w+)/);
-        if (!classMatch) {
-            return undefined;
-        }
-
-        return packageName ? `${packageName}.${classMatch[1]}` : classMatch[1];
+        return getFullyQualifiedClassName(document);
     }
 
     /**
@@ -151,10 +140,13 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
                 return undefined;
             }
 
-            const text = document.getText();
+            const controllerInFxml = this.getControllerClassName(document);
 
             // Check if this FXML uses the specified controller
-            if (!text.includes(`fx:controller="${controllerClassName}"`)) {
+            if (!controllerInFxml || (
+                controllerInFxml !== controllerClassName
+                && !await classExtends(controllerInFxml, controllerClassName, token)
+            )) {
                 continue;
             }
 
@@ -175,6 +167,11 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return undefined;
+    }
+
+    private getControllerClassName(document: vscode.TextDocument): string | undefined {
+        const match = document.getText().match(/fx:controller\s*=\s*"([^"]+)"/);
+        return match ? match[1] : undefined;
     }
 
     /**

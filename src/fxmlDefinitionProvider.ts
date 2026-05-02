@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
@@ -121,31 +122,22 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = className.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
+        const classInfo = await findJavaClass(className, token);
 
-        if (token.isCancellationRequested) {
-            return undefined;
-        }
-
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
+        if (classInfo) {
             // Find the class declaration line
-            for (let i = 0; i < document.lineCount; i++) {
+            for (let i = 0; i < classInfo.document.lineCount; i++) {
                 if (token.isCancellationRequested) {
                     return undefined;
                 }
 
-                const lineText = document.lineAt(i).text;
+                const lineText = classInfo.document.lineAt(i).text;
                 const simpleClassName = className.split('.').pop() || className;
                 if (lineText.includes(`class ${simpleClassName}`)) {
-                    return new vscode.Location(files[0], new vscode.Position(i, lineText.indexOf(`class ${simpleClassName}`)));
+                    return new vscode.Location(classInfo.uri, new vscode.Position(i, lineText.indexOf(`class ${simpleClassName}`)));
                 }
             }
-            return new vscode.Location(files[0], new vscode.Position(0, 0));
+            return new vscode.Location(classInfo.uri, new vscode.Position(0, 0));
         }
 
         return undefined;
@@ -163,23 +155,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
-
-        if (token.isCancellationRequested) {
-            return undefined;
-        }
-
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
-
-            return this.findMemberInJavaFile(document, files[0], methodName, true, token);
-        }
-
-        return undefined;
+        return this.findMemberInControllerHierarchy(controllerClassName, methodName, true, token);
     }
 
     /**
@@ -194,23 +170,38 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const relativePath = controllerClassName.replace(/\./g, '/') + '.java';
-        const files = await vscode.workspace.findFiles(`**/${relativePath}`, '**/node_modules/**');
+        return this.findMemberInControllerHierarchy(controllerClassName, fieldName, false, token);
+    }
 
-        if (token.isCancellationRequested) {
+    private async findMemberInControllerHierarchy(
+        controllerClassName: string,
+        memberName: string,
+        isMethod: boolean,
+        token: vscode.CancellationToken,
+        visited = new Set<string>()
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested || visited.has(controllerClassName)) {
             return undefined;
         }
 
-        if (files.length > 0) {
-            const document = await vscode.workspace.openTextDocument(files[0]);
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
+        visited.add(controllerClassName);
 
-            return this.findMemberInJavaFile(document, files[0], fieldName, false, token);
+        const classInfo = await findJavaClass(controllerClassName, token);
+        if (!classInfo) {
+            return undefined;
         }
 
-        return undefined;
+        const location = this.findMemberInJavaFile(classInfo.document, classInfo.uri, memberName, isMethod, token);
+        if (location || token.isCancellationRequested) {
+            return location;
+        }
+
+        const superClassName = getSuperclassName(classInfo.document);
+        if (!superClassName) {
+            return undefined;
+        }
+
+        return this.findMemberInControllerHierarchy(superClassName, memberName, isMethod, token, visited);
     }
 
     /**
