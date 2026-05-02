@@ -3,7 +3,6 @@
 ## [Unreleased]
 
 ### Fixed
-- Fixed the VS Code F5 debug pre-launch watch task so it continues automatically after the initial esbuild build
 - Added `CancellationToken` checks to navigation, CodeLens, outline, and formatting providers to avoid returning stale results from canceled requests
 
 ## [1.0.3] - 2026-04-02
