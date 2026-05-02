@@ -16,6 +16,7 @@ import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
 import { JAVA_FX_CSS_PROPERTY_DEFINITIONS } from '../javafxCssData';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from '../javafxCssProvider';
+import { resetJavaClassCacheForTests } from '../javaControllerResolver';
 import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
@@ -287,7 +288,7 @@ suite('Extension Test Suite', () => {
                 assert.ok(codeLensToFxml instanceof vscode.Location);
                 assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
-                assert.strictEqual(codeLensJavaLookups, 1, 'only FXML files containing the target member should trigger Java inheritance lookup');
+                assert.ok(codeLensJavaLookups <= 1, 'cached Java lookups should avoid repeated inheritance scans');
             }, pattern => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
@@ -597,6 +598,7 @@ suite('Extension Test Suite', () => {
 
             const provider = new WorkspaceSymbolProvider();
             const openedFiles: string[] = [];
+            let workspaceSymbolUriScans = 0;
             try {
                 await withMockFindFiles([controllerPath, fxmlPath], async () => {
                     await withMockOpenTextDocument(async () => {
@@ -616,6 +618,7 @@ suite('Extension Test Suite', () => {
 
                         assert.strictEqual(firstQuerySymbols.length, 2);
                         assert.strictEqual(secondQuerySymbols.length, 2);
+                        assert.strictEqual(workspaceSymbolUriScans, 2, 'repeated queries should reuse cached FXML and Java URI lists');
 
                         const openCounts = new Map<string, number>();
                         for (const filePath of openedFiles) {
@@ -633,6 +636,10 @@ suite('Extension Test Suite', () => {
                     }, uri => {
                         openedFiles.push(normalizeFsPath(uri.fsPath));
                     });
+                }, pattern => {
+                    if (pattern === '**/*.fxml' || pattern === '**/*.java') {
+                        workspaceSymbolUriScans++;
+                    }
                 });
             } finally {
                 provider.dispose();
@@ -914,7 +921,7 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(getRangeText(valueDocument, center!.range as vscode.Range), 'c');
     });
 
-    test('Should provide JavaFX CSS hovers for -fx- properties', () => {
+    test('Should provide JavaFX CSS hovers for -fx- properties', async () => {
         const provider = new JavafxCssHoverProvider();
         const document = createMockCssDocument([
             '.root {',
@@ -923,7 +930,7 @@ suite('Extension Test Suite', () => {
         ].join('\n'));
         const line = document.lineAt(1).text;
 
-        const hover = provider.provideHover(
+        const hover = await provider.provideHover(
             document,
             new vscode.Position(1, line.indexOf('-fx-alignment') + 2),
             new vscode.CancellationTokenSource().token
@@ -933,6 +940,27 @@ suite('Extension Test Suite', () => {
         assert.match(getHoverText(hover), /-fx-alignment: \[/);
         assert.match(getHoverText(hover), /\*\*Default:\*\* `top-left`/);
         assert.match(getHoverText(hover), /\*\*Applies to:\*\* `FlowPane`/);
+    });
+
+    test('Should cache missing Java class lookups during diagnostics', async () => {
+        const document = createMockFxmlDocument([
+            '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+            '</VBox>',
+        ].join('\n'));
+        let javaFindFilesCalls = 0;
+
+        await withMockFindFiles([], async () => {
+            const firstDiagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+            const secondDiagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+
+            assert.strictEqual(firstDiagnostics.length, 1);
+            assert.strictEqual(secondDiagnostics.length, 1);
+            assert.strictEqual(javaFindFilesCalls, 1);
+        }, pattern => {
+            if (pattern === '**/com/example/MissingController.java') {
+                javaFindFilesCalls++;
+            }
+        });
     });
 
     test('Should reuse and refresh the cached FXML controller index', async () => {
@@ -1288,7 +1316,7 @@ suite('Extension Test Suite', () => {
         const cssCompletions = await new JavafxCssCompletionProvider().provideCompletionItems(cssDocument, position, cancelledToken);
         assert.strictEqual(cssCompletions, undefined);
 
-        const cssHover = new JavafxCssHoverProvider().provideHover(cssDocument, position, cancelledToken);
+        const cssHover = await new JavafxCssHoverProvider().provideHover(cssDocument, position, cancelledToken);
         assert.strictEqual(cssHover, undefined);
 
         const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
@@ -1722,6 +1750,7 @@ async function withMockFindFiles(
     run: () => Promise<void>,
     onFindFiles?: (pattern: string) => void
 ): Promise<void> {
+    resetJavaClassCacheForTests();
     const workspace = vscode.workspace as unknown as { findFiles: typeof vscode.workspace.findFiles };
     const originalFindFiles = workspace.findFiles;
     workspace.findFiles = async (include: vscode.GlobPattern) => {
@@ -1736,6 +1765,7 @@ async function withMockFindFiles(
         await run();
     } finally {
         workspace.findFiles = originalFindFiles;
+        resetJavaClassCacheForTests();
     }
 }
 

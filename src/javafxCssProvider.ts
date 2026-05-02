@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { JAVA_FX_CSS_PROPERTY_DEFINITIONS, JavafxCssPropertyDefinition } from './javafxCssData';
+import type { JavafxCssPropertyDefinition } from './javafxCssData';
 
 interface CssPropertyMatch {
     readonly definition: JavafxCssPropertyDefinition;
@@ -15,6 +15,12 @@ interface ValueCompletionContext {
 interface JavafxCssValueOption {
     readonly value: string;
     readonly label: string;
+}
+
+interface JavafxCssData {
+    readonly propertyDefinitions: readonly JavafxCssPropertyDefinition[];
+    readonly propertyLookup: ReadonlyMap<string, JavafxCssPropertyDefinition>;
+    readonly valueLookup: ReadonlyMap<string, readonly JavafxCssValueOption[]>;
 }
 
 interface CssDocumentContext {
@@ -48,26 +54,26 @@ const CSS_VALUE_SEPARATOR = ' ';
 // Sort JavaFX properties before built-in CSS vendor-prefix suggestions such as -ms-* and -webkit-*.
 const JAVA_FX_CSS_PROPERTY_SORT_PREFIX = '0000-javafx-css-';
 
-const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
-    ...definition,
-    name: definition.name.toLowerCase(),
-}));
-const PROPERTY_LOOKUP = new Map(PROPERTY_DEFINITIONS.map(definition => [definition.name, definition]));
-const VALUE_LOOKUP = new Map(PROPERTY_DEFINITIONS.map(definition => [definition.name, extractValueOptions(definition)]));
+let javafxCssData: Promise<JavafxCssData> | undefined;
 
 export class JavafxCssCompletionProvider implements vscode.CompletionItemProvider {
-    provideCompletionItems(
+    async provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+    ): Promise<vscode.CompletionItem[] | vscode.CompletionList | undefined> {
         if (token.isCancellationRequested) {
             return undefined;
         }
 
-        const valueContext = this.getValueCompletionContext(document, position);
+        const data = await getJavafxCssData();
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        const valueContext = this.getValueCompletionContext(document, position, data);
         if (valueContext) {
-            return this.createValueCompletionItems(valueContext);
+            return this.createValueCompletionItems(valueContext, data);
         }
 
         const propertyPrefix = this.getPropertyNamePrefix(document, position);
@@ -75,7 +81,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
             return undefined;
         }
 
-        const items = PROPERTY_DEFINITIONS
+        const items = data.propertyDefinitions
             .filter(definition => definition.name.startsWith(propertyPrefix.prefix))
             .map(definition => {
                 const item = new vscode.CompletionItem(definition.name, vscode.CompletionItemKind.Property);
@@ -84,14 +90,14 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
                 item.filterText = definition.name;
                 item.range = propertyPrefix.range;
                 item.sortText = `${JAVA_FX_CSS_PROPERTY_SORT_PREFIX}${definition.name}`;
-                item.documentation = createPropertyDocumentation(definition);
+                item.documentation = createPropertyDocumentation(definition, data);
                 return item;
             });
         return new vscode.CompletionList(items, true);
     }
 
-    private createValueCompletionItems(context: ValueCompletionContext): vscode.CompletionItem[] | undefined {
-        const valueOptions = VALUE_LOOKUP.get(context.definition.name) ?? [];
+    private createValueCompletionItems(context: ValueCompletionContext, data: JavafxCssData): vscode.CompletionItem[] | undefined {
+        const valueOptions = data.valueLookup.get(context.definition.name) ?? [];
         if (valueOptions.length === 0) {
             return undefined;
         }
@@ -130,7 +136,11 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         };
     }
 
-    private getValueCompletionContext(document: vscode.TextDocument, position: vscode.Position): ValueCompletionContext | undefined {
+    private getValueCompletionContext(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        data: JavafxCssData
+    ): ValueCompletionContext | undefined {
         const context = getCssDocumentContext(document, position);
         if (!context) {
             return undefined;
@@ -143,7 +153,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         }
 
         const propertyName = match[1].toLowerCase();
-        const definition = PROPERTY_LOOKUP.get(propertyName);
+        const definition = data.propertyLookup.get(propertyName);
         if (!definition) {
             return undefined;
         }
@@ -165,24 +175,33 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
 }
 
 export class JavafxCssHoverProvider implements vscode.HoverProvider {
-    provideHover(
+    async provideHover(
         document: vscode.TextDocument,
         position: vscode.Position,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.Hover> {
+    ): Promise<vscode.Hover | undefined> {
         if (token.isCancellationRequested) {
             return undefined;
         }
 
-        const propertyMatch = this.getPropertyAtPosition(document, position);
+        const data = await getJavafxCssData();
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        const propertyMatch = this.getPropertyAtPosition(document, position, data);
         if (!propertyMatch) {
             return undefined;
         }
 
-        return new vscode.Hover(createPropertyDocumentation(propertyMatch.definition), propertyMatch.range);
+        return new vscode.Hover(createPropertyDocumentation(propertyMatch.definition, data), propertyMatch.range);
     }
 
-    private getPropertyAtPosition(document: vscode.TextDocument, position: vscode.Position): CssPropertyMatch | undefined {
+    private getPropertyAtPosition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        data: JavafxCssData
+    ): CssPropertyMatch | undefined {
         const lineText = document.lineAt(position.line).text;
         FX_PROPERTY_GLOBAL_PATTERN.lastIndex = 0;
         let match: RegExpExecArray | null;
@@ -193,7 +212,7 @@ export class JavafxCssHoverProvider implements vscode.HoverProvider {
                 continue;
             }
 
-            const definition = PROPERTY_LOOKUP.get(match[0].toLowerCase());
+            const definition = data.propertyLookup.get(match[0].toLowerCase());
             if (!definition) {
                 return undefined;
             }
@@ -208,7 +227,22 @@ export class JavafxCssHoverProvider implements vscode.HoverProvider {
     }
 }
 
-function createPropertyDocumentation(definition: JavafxCssPropertyDefinition): vscode.MarkdownString {
+async function getJavafxCssData(): Promise<JavafxCssData> {
+    javafxCssData ??= import('./javafxCssData.js').then((module: typeof import('./javafxCssData.js')) => {
+        const propertyDefinitions = module.JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
+            ...definition,
+            name: definition.name.toLowerCase(),
+        }));
+        return {
+            propertyDefinitions,
+            propertyLookup: new Map(propertyDefinitions.map(definition => [definition.name, definition])),
+            valueLookup: new Map(propertyDefinitions.map(definition => [definition.name, extractValueOptions(definition)])),
+        };
+    });
+    return javafxCssData;
+}
+
+function createPropertyDocumentation(definition: JavafxCssPropertyDefinition, data: JavafxCssData): vscode.MarkdownString {
     const markdown = new vscode.MarkdownString();
     const syntax = definition.syntax || '<value>';
     markdown.appendCodeblock(`${definition.name}: ${syntax};`, 'css');
@@ -222,7 +256,7 @@ function createPropertyDocumentation(definition: JavafxCssPropertyDefinition): v
         markdown.appendMarkdown(`\n\n**Applies to:** ${definition.appliesTo.map(target => `\`${escapeInlineCode(target)}\``).join(', ')}`);
     }
 
-    const valueOptions = VALUE_LOOKUP.get(definition.name) ?? [];
+    const valueOptions = data.valueLookup.get(definition.name) ?? [];
     if (valueOptions.length > 0) {
         markdown.appendMarkdown(`\n\n**Common values:** ${valueOptions.slice(0, 12).map(option => `\`${escapeInlineCode(option.value)}\``).join(', ')}`);
     }

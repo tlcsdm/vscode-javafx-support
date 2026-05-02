@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
+import { EXCLUDE_GLOB, FXML_GLOB } from './constants';
 import { classExtends } from './javaControllerResolver';
-
-const FXML_GLOB = '**/*.fxml';
-const FXML_EXCLUDE_GLOB = '**/node_modules/**';
+import { isFxmlDocument, processInBatches } from './utils';
 
 type CachedFxmlEntry = {
     controllerClassName: string;
     fieldIds: ReadonlySet<string>;
     methodNames: ReadonlySet<string>;
     uri: vscode.Uri;
+    version: number;
 };
 
 class FxmlControllerCache implements vscode.Disposable {
@@ -29,12 +29,12 @@ class FxmlControllerCache implements vscode.Disposable {
             this.remove(uri);
         });
         const onOpen = vscode.workspace.onDidOpenTextDocument(document => {
-            if (this.isFxmlDocument(document)) {
+            if (isFxmlDocument(document) && !this.hasCurrentDocumentEntry(document)) {
                 void this.refresh(document.uri, document);
             }
         });
         const onSave = vscode.workspace.onDidSaveTextDocument(document => {
-            if (this.isFxmlDocument(document)) {
+            if (isFxmlDocument(document)) {
                 void this.refresh(document.uri, document);
             }
         });
@@ -90,8 +90,8 @@ class FxmlControllerCache implements vscode.Disposable {
     }
 
     private async populateInitialCache(): Promise<void> {
-        const uris = await vscode.workspace.findFiles(FXML_GLOB, FXML_EXCLUDE_GLOB);
-        await Promise.all(uris.map(uri => this.refresh(uri)));
+        const uris = await vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB);
+        await processInBatches(uris, 10, uri => this.refresh(uri));
     }
 
     private async refresh(uri: vscode.Uri, document?: vscode.TextDocument): Promise<void> {
@@ -114,7 +114,8 @@ class FxmlControllerCache implements vscode.Disposable {
                 controllerClassName,
                 fieldIds: members.fieldIds,
                 methodNames: members.methodNames,
-                uri
+                uri,
+                version: currentDocument.version,
             });
         } catch {
             this.remove(uri);
@@ -200,8 +201,9 @@ class FxmlControllerCache implements vscode.Disposable {
         return false;
     }
 
-    private isFxmlDocument(document: vscode.TextDocument): boolean {
-        return document.uri.scheme === 'file' && document.fileName.endsWith('.fxml');
+    private hasCurrentDocumentEntry(document: vscode.TextDocument): boolean {
+        const entry = this.entries.get(document.uri.fsPath);
+        return !!entry && entry.version === document.version;
     }
 
     private isIgnored(uri: vscode.Uri): boolean {

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
+import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
 
 interface HoverTarget {
     kind: 'controller' | 'field' | 'method';
@@ -137,7 +138,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         target: HoverTarget,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        const controllerClassName = this.findControllerInDocument(document);
+        const controllerClassName = findControllerInDocument(document);
         if (!controllerClassName) {
             return undefined;
         }
@@ -159,11 +160,6 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         }
 
         return new vscode.Hover(markdown, target.range);
-    }
-
-    private findControllerInDocument(document: vscode.TextDocument): string | undefined {
-        const match = document.getText().match(/fx:controller\s*=\s*"([^"]+)"/);
-        return match ? match[1] : undefined;
     }
 
     private async findMemberInControllerHierarchy(
@@ -224,8 +220,8 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
             }
 
             const declarationMatch = isMethod
-                ? this.getMethodDeclarationMatch(lineText, memberName)
-                : this.getFieldDeclarationMatch(lineText, memberName);
+                ? getMethodDeclarationMatch(lineText, memberName)
+                : getFieldDeclarationMatch(lineText, memberName);
             if (!declarationMatch) {
                 if (fxmlAnnotationLine >= 0 && i - fxmlAnnotationLine > 2) {
                     fxmlAnnotationLine = -1;
@@ -255,7 +251,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
     }
 
     private findClassDocumentation(document: vscode.TextDocument, className: string): string | undefined {
-        const classPattern = new RegExp(`\\b(?:class|interface|enum|record)\\s+${this.escapeRegex(className)}\\b`);
+        const classPattern = new RegExp(`\\b(?:class|interface|enum|record)\\s+${escapeRegex(className)}\\b`);
 
         for (let i = 0; i < document.lineCount; i++) {
             const lineText = document.lineAt(i).text;
@@ -344,51 +340,6 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         return cleaned || undefined;
     }
 
-    private getMethodDeclarationMatch(line: string, methodName: string): RegExpExecArray | undefined {
-        const methodPattern = new RegExp(`\\b${this.escapeRegex(methodName)}\\s*\\(`);
-        const methodMatch = methodPattern.exec(line);
-        if (!methodMatch) {
-            return undefined;
-        }
-
-        const prefix = line.slice(0, methodMatch.index).trimEnd();
-        if (!this.isValidMemberDeclarationPrefix(prefix)) {
-            return undefined;
-        }
-
-        const lastPrefixChar = prefix.trimEnd().at(-1);
-        return lastPrefixChar && (/\w/.test(lastPrefixChar) || lastPrefixChar === '>' || lastPrefixChar === ']')
-            ? methodMatch
-            : undefined;
-    }
-
-    private getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
-        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,)])`);
-        const fieldMatch = fieldPattern.exec(line);
-        if (!fieldMatch) {
-            return undefined;
-        }
-
-        const prefix = line.slice(0, fieldMatch.index).trim();
-        if (!this.isValidMemberDeclarationPrefix(prefix)) {
-            return undefined;
-        }
-
-        return fieldMatch;
-    }
-
-    private isValidMemberDeclarationPrefix(prefix: string): boolean {
-        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
-            return false;
-        }
-
-        return !this.containsInvalidMemberPrefixKeyword(prefix);
-    }
-
-    private containsInvalidMemberPrefixKeyword(prefix: string): boolean {
-        return /\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
-    }
-
     private getSimpleClassName(className: string): string {
         return className.split('.').pop() || className;
     }
@@ -397,7 +348,4 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         return value.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1');
     }
 
-    private escapeRegex(str: string): string {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
 }

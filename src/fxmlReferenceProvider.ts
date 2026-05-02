@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
+import { escapeRegex } from './utils';
 
 /**
  * Provides "Find All References" from FXML fx:id declarations.
@@ -55,7 +56,7 @@ export class FxmlReferenceProvider implements vscode.ReferenceProvider {
         token: vscode.CancellationToken
     ): vscode.Location[] {
         const locations: vscode.Location[] = [];
-        const pattern = new RegExp(`\\$${this.escapeRegex(memberName)}(?=[^\\w$]|$)`, 'g');
+        const pattern = new RegExp(`\\$${escapeRegex(memberName)}(?=[^\\w$]|$)`, 'g');
 
         for (let i = 0; i < document.lineCount; i++) {
             if (token.isCancellationRequested) {
@@ -72,9 +73,5 @@ export class FxmlReferenceProvider implements vscode.ReferenceProvider {
         }
 
         return locations;
-    }
-
-    private escapeRegex(str: string): string {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 }
