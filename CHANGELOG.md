@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- Linked editing for matching FXML start/end tags so renaming `<user>` also updates `</user>`
+- Linked editing for matching FXML start/end tags so renaming `<Label>` also updates `</Label>`
 
 ### Fixed
 - Enabled linked editing by default for FXML files so matching tag renames take effect immediately
