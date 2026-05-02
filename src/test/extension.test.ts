@@ -322,27 +322,21 @@ suite('Extension Test Suite', () => {
         });
     });
 
-    test('Should report missing controller members and missing resource bundle keys', async () => {
+    test('Should report missing controller members', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
-            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
             await fs.mkdir(javaDir, { recursive: true });
-            await fs.mkdir(resourceDir, { recursive: true });
 
             const baseController = path.join(javaDir, 'BaseController.java');
             const mainController = path.join(javaDir, 'MainController.java');
-            const messagesProperties = path.join(resourceDir, 'messages_zh_CN.properties');
 
             await fs.writeFile(baseController, [
                 'package com.example;',
                 '',
-                'import java.util.ResourceBundle;',
                 'import javafx.scene.control.Label;',
                 '',
                 'public class BaseController {',
-                '    private static final String BUNDLE_NAME = "com.example.messages";',
-                '    protected final ResourceBundle resources = ResourceBundle.getBundle(BUNDLE_NAME);',
                 '    protected Label statusLabel;',
                 '}',
             ].join('\n'));
@@ -361,25 +355,20 @@ suite('Extension Test Suite', () => {
                 '    }',
                 '}',
             ].join('\n'));
-            await fs.writeFile(messagesProperties, [
-                'existing.key=Existing value',
-            ].join('\n'));
-
             const document = createMockFxmlDocument([
                 '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
-                '  <Label fx:id="statusLabel" text="%existing.key" />',
-                '  <Button fx:id="submitButton" onAction="#handleSubmit" text="%missing.key" />',
+                '  <Label fx:id="statusLabel" />',
+                '  <Button fx:id="submitButton" onAction="#handleSubmit" />',
                 '  <TextField fx:id="nameField" onAction="#missingHandler" />',
                 '</VBox>',
             ].join('\n'));
 
-            await withMockFindFiles([baseController, mainController, messagesProperties], async () => {
+            await withMockFindFiles([baseController, mainController], async () => {
                 const diagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
                 const expectedDiagnosticCodes = [
                     'non-fxml-fx-id-field',
                     'missing-fx-id-field',
                     'missing-event-handler',
-                    'missing-resource-bundle-key',
                 ];
 
                 assert.strictEqual(diagnostics.length, expectedDiagnosticCodes.length);
@@ -401,12 +390,6 @@ suite('Extension Test Suite', () => {
                 assert.strictEqual(missingHandler!.severity, vscode.DiagnosticSeverity.Error);
                 assert.strictEqual(missingHandler!.message, "Event handler 'missingHandler' could not be found in the controller.");
                 assert.strictEqual(getRangeText(document, missingHandler!.range), 'missingHandler');
-
-                const missingResourceKey = diagnostics.find(diagnostic => diagnostic.code === 'missing-resource-bundle-key');
-                assert.ok(missingResourceKey);
-                assert.strictEqual(missingResourceKey!.severity, vscode.DiagnosticSeverity.Warning);
-                assert.strictEqual(missingResourceKey!.message, "Resource bundle key 'missing.key' could not be found.");
-                assert.strictEqual(getRangeText(document, missingResourceKey!.range), 'missing.key');
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -453,7 +436,7 @@ suite('Extension Test Suite', () => {
         }
     });
 
-    test('Should refresh FXML diagnostics after controller and properties saves', async () => {
+    test('Should refresh FXML diagnostics after controller saves', async () => {
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
         await extension?.activate();
 
@@ -466,16 +449,12 @@ suite('Extension Test Suite', () => {
 
             const baseController = path.join(javaDir, 'BaseController.java');
             const mainController = path.join(javaDir, 'MainController.java');
-            const messagesProperties = path.join(resourceDir, 'messages_zh_CN.properties');
             const mainFxml = path.join(resourceDir, 'Main.fxml');
 
             await fs.writeFile(baseController, [
                 'package com.example;',
                 '',
-                'import java.util.ResourceBundle;',
-                '',
                 'public class BaseController {',
-                '    protected final ResourceBundle resources = ResourceBundle.getBundle("com.example.messages");',
                 '}',
             ].join('\n'));
             await fs.writeFile(mainController, [
@@ -484,23 +463,19 @@ suite('Extension Test Suite', () => {
                 'public class MainController extends BaseController {',
                 '}',
             ].join('\n'));
-            await fs.writeFile(messagesProperties, [
-                'existing.key=Existing value',
-            ].join('\n'));
             await fs.writeFile(mainFxml, [
                 '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
-                '  <Button fx:id="submitButton" onAction="#handleSubmit" text="%missing.key" />',
+                '  <Button fx:id="submitButton" onAction="#handleSubmit" />',
                 '</VBox>',
             ].join('\n'));
 
-            await withMockFindFiles([baseController, mainController, messagesProperties], async () => {
+            await withMockFindFiles([baseController, mainController], async () => {
                 const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
                 await waitForDiagnostics(
                     fxmlDocument.uri,
-                    diagnostics => diagnostics.length === 3
+                    diagnostics => diagnostics.length === 2
                         && diagnostics.some(diagnostic => diagnostic.code === 'missing-fx-id-field')
                         && diagnostics.some(diagnostic => diagnostic.code === 'missing-event-handler')
-                        && diagnostics.some(diagnostic => diagnostic.code === 'missing-resource-bundle-key')
                 );
 
                 const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainController));
@@ -526,16 +501,6 @@ suite('Extension Test Suite', () => {
                 );
                 await vscode.workspace.applyEdit(controllerEdit);
                 await controllerDocument.save();
-
-                const propertiesDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(messagesProperties));
-                const propertiesEdit = new vscode.WorkspaceEdit();
-                propertiesEdit.insert(
-                    propertiesDocument.uri,
-                    propertiesDocument.lineAt(propertiesDocument.lineCount - 1).range.end,
-                    '\nmissing.key=Added later'
-                );
-                await vscode.workspace.applyEdit(propertiesEdit);
-                await propertiesDocument.save();
 
                 const updatedDiagnostics = await waitForDiagnostics(fxmlDocument.uri, diagnostics => diagnostics.length === 0);
                 assert.strictEqual(updatedDiagnostics.length, 0);

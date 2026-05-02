@@ -4,14 +4,6 @@ import { findJavaClass, getSuperclassName, type JavaClassInfo } from './javaCont
 const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
 const MAX_FXML_ANNOTATION_DISTANCE = 2;
-// Matches FXML attribute assignments whose value starts with a single '%' resource-bundle reference.
-// JavaFX uses '%%' to escape a literal percent sign, so those are intentionally excluded.
-const RESOURCE_BUNDLE_ATTRIBUTE_PATTERN = /\b[\w:.-]+\s*=\s*(["'])%(?!%)([^"']+)\1/g;
-// Matches Java String constant declarations with optional access modifiers, any static/final ordering,
-// and escaped characters inside the string literal.
-const JAVA_STRING_CONSTANT_PATTERN = /\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"((?:[^"\\]|\\.)*)"/g;
-// Matches ResourceBundle.getBundle(...) calls and captures either a literal base name or a String constant name.
-const RESOURCE_BUNDLE_GET_BUNDLE_PATTERN = /\bResourceBundle\s*\.\s*getBundle\s*\(\s*("([^"]+)"|(\w+))/g;
 
 interface AttributeOccurrence {
     value: string;
@@ -198,7 +190,6 @@ export async function collectFxmlDiagnostics(
     if (controllerClass && controllerInfo && !token.isCancellationRequested) {
         const controllerFieldStateCache = new Map<string, Promise<ControllerFieldState>>();
         const controllerMethodStateCache = new Map<string, Promise<boolean>>();
-        const resourceBundleKeysPromise = collectResourceBundleKeys(controllerClass, getClassInfo, token);
 
         for (const [fxId, occurrences] of occurrencesById) {
             const cachedState = controllerFieldStateCache.get(fxId) ?? findControllerFieldState(controllerClass, fxId, getClassInfo, token);
@@ -232,25 +223,6 @@ export async function collectFxmlDiagnostics(
                 vscode.l10n.t("Event handler '{0}' could not be found in the controller.", occurrence.value),
                 vscode.DiagnosticSeverity.Error,
                 'missing-event-handler'
-            ));
-        }
-
-        const resourceBundleKeys = await resourceBundleKeysPromise;
-        if (token.isCancellationRequested || !resourceBundleKeys) {
-            return sortDiagnostics(diagnostics);
-        }
-
-        const resourceKeyOccurrences = findAttributeOccurrences(document, text, RESOURCE_BUNDLE_ATTRIBUTE_PATTERN);
-        for (const occurrence of resourceKeyOccurrences) {
-            if (resourceBundleKeys.has(occurrence.value)) {
-                continue;
-            }
-
-            diagnostics.push(createDiagnostic(
-                occurrence.range,
-                vscode.l10n.t("Resource bundle key '{0}' could not be found.", occurrence.value),
-                vscode.DiagnosticSeverity.Warning,
-                'missing-resource-bundle-key'
             ));
         }
     }
@@ -361,191 +333,6 @@ async function findControllerMethod(
     return superClassName
         ? findControllerMethod(superClassName, methodName, getClassInfo, token, visited)
         : false;
-}
-
-async function collectResourceBundleKeys(
-    controllerClassName: string,
-    getClassInfo: (className: string) => Promise<JavaClassInfo | undefined>,
-    token: vscode.CancellationToken
-): Promise<Set<string> | undefined> {
-    const bundleNames = await collectResourceBundleBaseNames(controllerClassName, getClassInfo, token);
-    if (token.isCancellationRequested || bundleNames.size === 0) {
-        return undefined;
-    }
-
-    const keys = new Set<string>();
-    let sawPropertiesFile = false;
-    for (const bundleName of bundleNames) {
-        const bundleFiles = await findResourceBundleFiles(bundleName, token);
-        for (const bundleFile of bundleFiles) {
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
-
-            sawPropertiesFile = true;
-            const bundleDocument = await vscode.workspace.openTextDocument(bundleFile);
-            for (const key of parsePropertiesKeys(bundleDocument.getText())) {
-                keys.add(key);
-            }
-        }
-    }
-
-    return sawPropertiesFile ? keys : undefined;
-}
-
-async function findResourceBundleFiles(bundleName: string, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
-    const bundlePath = bundleName.replace(/\./g, '/');
-    const bundlePatterns = [
-        `**/${bundlePath}.properties`,
-        `**/${bundlePath}_*.properties`,
-    ];
-    const bundleFiles = new Map<string, vscode.Uri>();
-
-    for (const pattern of bundlePatterns) {
-        if (token.isCancellationRequested) {
-            return [];
-        }
-
-        for (const file of await vscode.workspace.findFiles(pattern, '**/node_modules/**')) {
-            bundleFiles.set(file.toString(), file);
-        }
-    }
-
-    return [...bundleFiles.values()];
-}
-
-async function collectResourceBundleBaseNames(
-    controllerClassName: string,
-    getClassInfo: (className: string) => Promise<JavaClassInfo | undefined>,
-    token: vscode.CancellationToken,
-    visited = new Set<string>()
-): Promise<Set<string>> {
-    const bundleNames = new Set<string>();
-    if (token.isCancellationRequested || visited.has(controllerClassName)) {
-        return bundleNames;
-    }
-
-    visited.add(controllerClassName);
-
-    const classInfo = await getClassInfo(controllerClassName);
-    if (!classInfo || token.isCancellationRequested) {
-        return bundleNames;
-    }
-
-    for (const bundleName of extractResourceBundleBaseNames(classInfo.document.getText())) {
-        bundleNames.add(bundleName);
-    }
-
-    const superClassName = getSuperclassName(classInfo.document);
-    if (!superClassName) {
-        return bundleNames;
-    }
-
-    for (const bundleName of await collectResourceBundleBaseNames(superClassName, getClassInfo, token, visited)) {
-        bundleNames.add(bundleName);
-    }
-
-    return bundleNames;
-}
-
-function extractResourceBundleBaseNames(text: string): string[] {
-    const stringConstants = new Map<string, string>();
-    for (const match of text.matchAll(JAVA_STRING_CONSTANT_PATTERN)) {
-        stringConstants.set(match[1], match[2].replace(/\\(["\\])/g, '$1'));
-    }
-
-    const bundleNames = new Set<string>();
-    for (const match of text.matchAll(RESOURCE_BUNDLE_GET_BUNDLE_PATTERN)) {
-        const literalName = match[2];
-        const constantName = match[3];
-        const resolvedBundleName = literalName || (constantName ? stringConstants.get(constantName) : undefined);
-        if (resolvedBundleName) {
-            bundleNames.add(resolvedBundleName);
-        }
-    }
-
-    return [...bundleNames];
-}
-
-function parsePropertiesKeys(text: string): Set<string> {
-    const keys = new Set<string>();
-    const logicalLines = mergeContinuationLines(text);
-
-    for (const line of logicalLines) {
-        const trimmed = line.trimStart();
-        if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) {
-            continue;
-        }
-
-        const key = readPropertyKey(trimmed);
-        if (key) {
-            keys.add(key);
-        }
-    }
-
-    return keys;
-}
-
-function mergeContinuationLines(text: string): string[] {
-    const logicalLines: string[] = [];
-    const physicalLines = text.split(/\r?\n/);
-    let currentLine = '';
-
-    for (const line of physicalLines) {
-        const continuedLine = currentLine + line;
-        if (endsWithOddNumberOfBackslashes(continuedLine)) {
-            currentLine = continuedLine.slice(0, -1);
-            continue;
-        }
-
-        logicalLines.push(continuedLine);
-        currentLine = '';
-    }
-
-    if (currentLine) {
-        logicalLines.push(currentLine);
-    }
-
-    return logicalLines;
-}
-
-function endsWithOddNumberOfBackslashes(text: string): boolean {
-    let trailingBackslashes = 0;
-    for (let index = text.length - 1; index >= 0 && text[index] === '\\'; index--) {
-        trailingBackslashes++;
-    }
-
-    return trailingBackslashes % 2 === 1;
-}
-
-function readPropertyKey(line: string): string | undefined {
-    let key = '';
-    let escaping = false;
-
-    for (const character of line) {
-        if (isPropertyKeyDelimiter(character, escaping)) {
-            break;
-        }
-
-        if (escaping) {
-            key += character;
-            escaping = false;
-            continue;
-        }
-
-        if (character === '\\') {
-            escaping = true;
-            continue;
-        }
-
-        key += character;
-    }
-
-    return key || undefined;
-}
-
-function isPropertyKeyDelimiter(character: string, escaping: boolean): boolean {
-    return !escaping && (character === '=' || character === ':' || /\s/.test(character));
 }
 
 function findFieldStateInJavaFile(
