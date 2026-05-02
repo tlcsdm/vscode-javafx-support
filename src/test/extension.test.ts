@@ -105,7 +105,7 @@ suite('Extension Test Suite', () => {
             );
 
             assert.ok(location instanceof vscode.Location);
-            assert.strictEqual(location.uri.fsPath, includedFxml);
+            assertFsPathEqual(location.uri.fsPath, includedFxml);
             assert.deepStrictEqual(location.range.start, new vscode.Position(0, 0));
 
             const idPosition = new vscode.Position(0, document.lineAt(0).text.indexOf('toolbar'));
@@ -164,7 +164,7 @@ suite('Extension Test Suite', () => {
                 );
 
                 assert.ok(fxmlToJava instanceof vscode.Location);
-                assert.strictEqual(fxmlToJava.uri.fsPath, baseController);
+                assertFsPathEqual(fxmlToJava.uri.fsPath, baseController);
                 assert.deepStrictEqual(fxmlToJava.range.start, new vscode.Position(7, 21));
 
                 const baseDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(baseController));
@@ -176,7 +176,7 @@ suite('Extension Test Suite', () => {
                 );
 
                 assert.ok(javaToFxml instanceof vscode.Location);
-                assert.strictEqual(javaToFxml.uri.fsPath, mainFxml);
+                assertFsPathEqual(javaToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(javaToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
             });
         } finally {
@@ -445,7 +445,7 @@ async function withMockFindFiles(files: string[], run: () => Promise<void>): Pro
         }
 
         const suffix = pattern.replace(/^\*\*\//, '');
-        return files.filter(file => file.endsWith(suffix)).map(file => vscode.Uri.file(file));
+        return files.filter(file => toGlobPath(file).endsWith(suffix)).map(file => vscode.Uri.file(file));
     };
 
     try {
@@ -453,6 +453,19 @@ async function withMockFindFiles(files: string[], run: () => Promise<void>): Pro
     } finally {
         workspace.findFiles = originalFindFiles;
     }
+}
+
+function assertFsPathEqual(actual: string, expected: string): void {
+    assert.strictEqual(normalizeFsPath(actual), normalizeFsPath(expected));
+}
+
+function normalizeFsPath(filePath: string): string {
+    const normalized = path.normalize(filePath);
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
+function toGlobPath(filePath: string): string {
+    return filePath.replace(/\\/g, '/');
 }
 
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {
