@@ -1167,11 +1167,14 @@ async function withMockJavafxSupportConfiguration(
 
         return {
             ...configuration,
-            get: <T>(key: string, defaultValue?: T) => (
-                Object.prototype.hasOwnProperty.call(values, key)
-                    ? values[key] as T
-                    : configuration.get<T>(key, defaultValue)
-            ),
+            get: <T>(key: string, defaultValue?: T) => {
+                if (Object.prototype.hasOwnProperty.call(values, key)) {
+                    return values[key] as T;
+                }
+
+                const configuredValue = configuration.get<T>(key);
+                return configuredValue === undefined ? defaultValue as T : configuredValue;
+            },
         } as vscode.WorkspaceConfiguration;
     }) as typeof vscode.workspace.getConfiguration;
 
