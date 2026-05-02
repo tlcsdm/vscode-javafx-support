@@ -112,7 +112,6 @@ export function activate(context: vscode.ExtensionContext): void {
             cssSelector,
             new JavafxCssCompletionProvider(),
             '-',
-            'f',
             'x',
             ' ',
             ':'
@@ -121,7 +120,6 @@ export function activate(context: vscode.ExtensionContext): void {
             fxmlSelector,
             new JavafxCssCompletionProvider(),
             '-',
-            'f',
             'x',
             ' ',
             ':'

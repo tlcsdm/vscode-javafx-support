@@ -806,6 +806,20 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(getRangeText(document, center!.range as vscode.Range), ' c');
         assert.ok(topLeft);
         assert.strictEqual(topLeft?.insertText, ' top-left;');
+
+        const spacedDocument = createMockCssDocument('.root { -fx-alignment:  c }');
+        const spacedCompletions = await provider.provideCompletionItems(
+            spacedDocument,
+            new vscode.Position(0, spacedDocument.lineAt(0).text.indexOf('  c') + '  c'.length),
+            new vscode.CancellationTokenSource().token
+        );
+        assert.ok(Array.isArray(spacedCompletions));
+
+        const spacedCenter = (spacedCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        assert.ok(spacedCenter);
+        assert.strictEqual(spacedCenter?.insertText, ' center;');
+        assert.ok(spacedCenter?.range instanceof vscode.Range);
+        assert.strictEqual(getRangeText(spacedDocument, spacedCenter!.range as vscode.Range), '  c');
     });
 
     test('Should provide JavaFX CSS completions inside FXML style attributes', async () => {
