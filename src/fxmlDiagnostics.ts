@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { findJavaClass } from './javaControllerResolver';
 
-const FXML_SELECTOR = ['fxml'];
+const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
 
 interface AttributeOccurrence {
@@ -89,7 +89,7 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
     }
 
     private shouldValidate(document: vscode.TextDocument): boolean {
-        return FXML_SELECTOR.includes(document.languageId) || document.fileName.endsWith('.fxml');
+        return FXML_LANGUAGE_IDS.includes(document.languageId) || document.fileName.endsWith('.fxml');
     }
 
     private isJavaDocument(document: vscode.TextDocument): boolean {
@@ -155,7 +155,7 @@ export async function collectFxmlDiagnostics(
 
         for (let index = 0; index < occurrences.length; index++) {
             const occurrence = occurrences[index];
-            const relatedOccurrence = occurrences[(index + 1) % occurrences.length];
+            const relatedOccurrence = index === 0 ? occurrences[1] : occurrences[0];
             const diagnostic = createDiagnostic(
                 occurrence.range,
                 `Duplicate fx:id '${fxId}'.`,
