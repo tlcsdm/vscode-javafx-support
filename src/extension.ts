@@ -9,6 +9,7 @@ import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider
 import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
 import { FxmlDiagnosticProvider } from './fxmlDiagnostics';
 import { registerFxmlControllerCache } from './fxmlControllerCache';
+import { FxmlHoverProvider } from './fxmlHoverProvider';
 
 /**
  * Extension activation
@@ -81,6 +82,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentSymbolProvider(
             fxmlSelector,
             new FxmlDocumentSymbolProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(
+            fxmlSelector,
+            new FxmlHoverProvider()
         )
     );
     context.subscriptions.push(

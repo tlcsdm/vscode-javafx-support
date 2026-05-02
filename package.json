@@ -114,6 +114,17 @@
           "type": "boolean",
           "default": true,
           "description": "%config.outline.showText.description%"
+        },
+        "tlcsdm.javafxSupport.hover.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.hover.enabled.description%"
+        },
+        "tlcsdm.javafxSupport.hover.delay": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "description": "%config.hover.delay.description%"
         }
       }
     }
