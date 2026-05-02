@@ -1482,17 +1482,11 @@ async function withMockOpenTextDocument(
         uriOrFileName: vscode.Uri | string,
         options?: { encoding?: string; language?: string }
     ) => {
-        if (uriOrFileName instanceof vscode.Uri) {
-            onOpenTextDocument?.(uriOrFileName);
-        } else {
-            onOpenTextDocument?.(vscode.Uri.file(uriOrFileName));
-        }
-
-        if (uriOrFileName instanceof vscode.Uri) {
-            return originalOpenTextDocument(uriOrFileName);
-        }
-
-        return originalOpenTextDocument(uriOrFileName, options);
+        const uri = uriOrFileName instanceof vscode.Uri ? uriOrFileName : vscode.Uri.file(uriOrFileName);
+        onOpenTextDocument?.(uri);
+        return uriOrFileName instanceof vscode.Uri
+            ? originalOpenTextDocument(uriOrFileName)
+            : originalOpenTextDocument(uriOrFileName, options);
     }) as typeof vscode.workspace.openTextDocument;
     workspace.openTextDocument = mockedOpenTextDocument;
 

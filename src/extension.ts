@@ -87,8 +87,8 @@ export function activate(context: vscode.ExtensionContext): void {
         )
     );
     const workspaceSymbolProvider = new WorkspaceSymbolProvider();
-    context.subscriptions.push(workspaceSymbolProvider);
     context.subscriptions.push(
+        workspaceSymbolProvider,
         vscode.languages.registerWorkspaceSymbolProvider(
             workspaceSymbolProvider
         )
