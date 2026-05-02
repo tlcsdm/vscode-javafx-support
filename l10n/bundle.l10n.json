@@ -1,0 +1,5 @@
+{
+    "Controller class '{0}' could not be found.": "Controller class '{0}' could not be found.",
+    "Duplicate fx:id '{0}'.": "Duplicate fx:id '{0}'.",
+    "Another '{0}' is declared here.": "Another '{0}' is declared here."
+}

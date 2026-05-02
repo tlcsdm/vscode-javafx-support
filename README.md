@@ -72,6 +72,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 
 - Missing `fx:controller` classes are reported as errors
 - Duplicate `fx:id` values in the same FXML file are reported as errors
+- Diagnostic messages follow the current VS Code display language (English, 简体中文, 日本語)
 
 ## Configuration
 

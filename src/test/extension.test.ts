@@ -303,16 +303,19 @@ suite('Extension Test Suite', () => {
             const missingController = diagnostics.find(diagnostic => diagnostic.code === 'missing-controller');
             assert.ok(missingController);
             assert.strictEqual(missingController!.severity, vscode.DiagnosticSeverity.Error);
+            assert.strictEqual(missingController!.message, "Controller class 'com.example.MissingController' could not be found.");
             assert.strictEqual(getRangeText(document, missingController!.range), 'com.example.MissingController');
 
             const duplicateFxIds = diagnostics.filter(diagnostic => diagnostic.code === 'duplicate-fx-id');
             assert.strictEqual(duplicateFxIds.length, 2);
             assert.ok(duplicateFxIds.every(diagnostic => diagnostic.severity === vscode.DiagnosticSeverity.Error));
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.message === "Duplicate fx:id 'submitButton'."));
             assert.deepStrictEqual(
                 duplicateFxIds.map(diagnostic => getRangeText(document, diagnostic.range)),
                 ['submitButton', 'submitButton']
             );
             assert.ok(duplicateFxIds.every(diagnostic => (diagnostic.relatedInformation?.length ?? 0) === 1));
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.relatedInformation?.[0].message === "Another 'submitButton' is declared here."));
         });
     });
 

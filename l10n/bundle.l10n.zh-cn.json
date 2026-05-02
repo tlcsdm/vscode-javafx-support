@@ -1,0 +1,5 @@
+{
+    "Controller class '{0}' could not be found.": "找不到控制器类“{0}”。",
+    "Duplicate fx:id '{0}'.": "fx:id“{0}”重复。",
+    "Another '{0}' is declared here.": "此处还声明了一个“{0}”。"
+}

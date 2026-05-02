@@ -128,7 +128,7 @@ export async function collectFxmlDiagnostics(
             if (!controllerInfo && !token.isCancellationRequested) {
                 diagnostics.push(createDiagnostic(
                     controller.range,
-                    `Controller class '${controllerClass}' could not be found.`,
+                    vscode.l10n.t("Controller class '{0}' could not be found.", controllerClass),
                     vscode.DiagnosticSeverity.Error,
                     'missing-controller'
                 ));
@@ -157,7 +157,7 @@ export async function collectFxmlDiagnostics(
             const occurrence = occurrences[index];
             const diagnostic = createDiagnostic(
                 occurrence.range,
-                `Duplicate fx:id '${fxId}'.`,
+                vscode.l10n.t("Duplicate fx:id '{0}'.", fxId),
                 vscode.DiagnosticSeverity.Error,
                 'duplicate-fx-id'
             );
@@ -165,7 +165,7 @@ export async function collectFxmlDiagnostics(
                 .filter((_, relatedIndex) => relatedIndex !== index)
                 .map(relatedOccurrence => new vscode.DiagnosticRelatedInformation(
                     new vscode.Location(document.uri, relatedOccurrence.range),
-                    `Another '${fxId}' is declared here.`
+                    vscode.l10n.t("Another '{0}' is declared here.", fxId)
                 ));
             diagnostics.push(diagnostic);
         }

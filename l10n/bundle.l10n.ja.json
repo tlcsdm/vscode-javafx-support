@@ -1,0 +1,5 @@
+{
+    "Controller class '{0}' could not be found.": "コントローラー クラス '{0}' が見つかりません。",
+    "Duplicate fx:id '{0}'.": "fx:id '{0}' が重複しています。",
+    "Another '{0}' is declared here.": "別の '{0}' がここで宣言されています。"
+}
