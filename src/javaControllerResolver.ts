@@ -14,6 +14,7 @@ export async function findJavaClass(className: string, token: vscode.Cancellatio
         return undefined;
     }
 
+    // undefined = not searched yet; null = searched and known missing.
     const cachedUri = javaClassUriCache.get(className);
     if (cachedUri === null) {
         return undefined;

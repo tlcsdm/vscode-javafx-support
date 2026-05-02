@@ -228,6 +228,7 @@ export class JavafxCssHoverProvider implements vscode.HoverProvider {
 }
 
 async function getJavafxCssData(): Promise<JavafxCssData> {
+    // Defer loading the large generated CSS metadata until CSS IntelliSense is first requested.
     // tsconfig uses Node16 module resolution, so dynamic imports must name the emitted JavaScript file.
     javafxCssData ??= import('./javafxCssData.js').then((module: typeof import('./javafxCssData.js')) => {
         const propertyDefinitions = module.JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({

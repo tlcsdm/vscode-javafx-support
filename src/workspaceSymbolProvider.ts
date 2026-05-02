@@ -30,6 +30,8 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
     private readonly disposable: vscode.Disposable;
     private fxmlUris: vscode.Uri[] | undefined;
     private javaUris: vscode.Uri[] | undefined;
+    private fxmlUrisPromise: Promise<vscode.Uri[]> | undefined;
+    private javaUrisPromise: Promise<vscode.Uri[]> | undefined;
 
     constructor() {
         const fxmlWatcher = vscode.workspace.createFileSystemWatcher(FXML_GLOB);
@@ -60,6 +62,8 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         this.javaSymbols.clear();
         this.fxmlUris = undefined;
         this.javaUris = undefined;
+        this.fxmlUrisPromise = undefined;
+        this.javaUrisPromise = undefined;
     }
 
     async provideWorkspaceSymbols(
@@ -156,14 +160,40 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
 
     private async getFxmlUris(): Promise<vscode.Uri[]> {
         // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
-        this.fxmlUris ??= await vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB);
-        return this.fxmlUris;
+        if (this.fxmlUris) {
+            return this.fxmlUris;
+        }
+
+        if (!this.fxmlUrisPromise) {
+            this.fxmlUrisPromise = Promise.resolve(vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB)).then(uris => {
+                this.fxmlUris = uris;
+                this.fxmlUrisPromise = undefined;
+                return uris;
+            }, error => {
+                this.fxmlUrisPromise = undefined;
+                throw error;
+            });
+        }
+        return this.fxmlUrisPromise;
     }
 
     private async getJavaUris(): Promise<vscode.Uri[]> {
         // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
-        this.javaUris ??= await vscode.workspace.findFiles(JAVA_GLOB, EXCLUDE_GLOB);
-        return this.javaUris;
+        if (this.javaUris) {
+            return this.javaUris;
+        }
+
+        if (!this.javaUrisPromise) {
+            this.javaUrisPromise = Promise.resolve(vscode.workspace.findFiles(JAVA_GLOB, EXCLUDE_GLOB)).then(uris => {
+                this.javaUris = uris;
+                this.javaUrisPromise = undefined;
+                return uris;
+            }, error => {
+                this.javaUrisPromise = undefined;
+                throw error;
+            });
+        }
+        return this.javaUrisPromise;
     }
 
     private async readFxmlSymbols(uri: vscode.Uri): Promise<CachedWorkspaceSymbol[]> {
@@ -319,6 +349,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         this.fxmlSymbols.delete(uri.toString());
         if (invalidateUriList) {
             this.fxmlUris = undefined;
+            this.fxmlUrisPromise = undefined;
         }
     }
 
@@ -326,6 +357,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         this.javaSymbols.delete(uri.toString());
         if (invalidateUriList) {
             this.javaUris = undefined;
+            this.javaUrisPromise = undefined;
         }
     }
 
