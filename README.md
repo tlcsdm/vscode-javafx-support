@@ -9,7 +9,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 🔧 **Scene Builder Integration** - Configure Scene Builder path and open FXML files directly in Scene Builder
 - 📐 **Formatter** - You can use an XML formatter specifically designed for FXML
 - ✏️ **Linked Editing** - Renaming an opening FXML tag also updates the matching closing tag
-- 🔗 **FXML → Controller Navigation** - Ctrl+Click on `fx:controller`, `onAction`, or `fx:id` in FXML to jump to the corresponding code in the Controller class
+- 🔗 **FXML → Controller & Resource Navigation** - Ctrl+Click on `fx:controller`, `onAction`, `fx:id`, `@image.png`, or `@style.css` in FXML to jump to the corresponding controller code or referenced resource file
 - 🔗 **Controller → FXML Navigation** - Ctrl+Click on `@FXML` annotated variables or methods in the Controller class to jump to the corresponding location in the FXML file
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
@@ -61,6 +61,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - Ctrl+Click on `fx:controller="com.example.MyController"` to open the controller class
 - Ctrl+Click on `fx:id="myButton"` to jump to the `@FXML` annotated field
 - Ctrl+Click on `onAction="#handleClick"` to jump to the `@FXML` annotated method
+- Ctrl+Click on `image="@images/logo.png"` or `stylesheets="@styles/main.css"` to open the referenced resource file relative to the current FXML file
 
 **Controller → FXML:**
 - Ctrl+Click on an `@FXML` annotated field to jump to the `fx:id` in the FXML file

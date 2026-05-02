@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
+// Matches quoted FXML attribute values that resolve resources relative to the current document,
+// for example image="@images/logo.png" or stylesheets="@styles/main.css".
+// Capture group 1 is the quote character and capture group 2 is the @resource value.
+const resourceAttributePattern = String.raw`\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1`;
+
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
  * Supports:
@@ -8,6 +13,7 @@ import { findJavaClass, getSuperclassName } from './javaControllerResolver';
  * - fx:id="myButton" → jumps to @FXML annotated field in the controller
  * - onAction="#handleClick" → jumps to @FXML annotated method in the controller
  * - fx:include source="Child.fxml" → opens the included FXML file
+ * - image="@image.png" / stylesheets="@style.css" → opens the referenced resource file
  */
 export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
@@ -24,6 +30,11 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         const includeSourceMatch = this.getFxIncludeSourceAtPosition(line, position.character);
         if (includeSourceMatch) {
             return this.findIncludedFxml(document, includeSourceMatch, token);
+        }
+
+        const resourceReferenceMatch = this.getResourceReferenceAtPosition(line, position.character);
+        if (resourceReferenceMatch) {
+            return this.findRelativeResource(document, resourceReferenceMatch, token);
         }
 
         // Check if clicking on fx:controller
@@ -82,6 +93,20 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         return undefined;
     }
 
+    private getResourceReferenceAtPosition(line: string, charPos: number): string | undefined {
+        const pattern = new RegExp(resourceAttributePattern, 'g');
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+            const valueStart = match.index + match[0].indexOf(match[2]);
+            const valueEnd = valueStart + match[2].length;
+            if (charPos >= valueStart && charPos <= valueEnd) {
+                // JavaFX uses @@ to escape a literal @ in attribute values, so those should not resolve as resources.
+                return match[2].startsWith('@@') ? undefined : match[2].slice(1);
+            }
+        }
+        return undefined;
+    }
+
     private async findIncludedFxml(
         document: vscode.TextDocument,
         source: string,
@@ -103,6 +128,29 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return new vscode.Location(includeUri, new vscode.Position(0, 0));
+    }
+
+    private async findRelativeResource(
+        document: vscode.TextDocument,
+        source: string,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested || document.uri.scheme !== 'file') {
+            return undefined;
+        }
+
+        const resourceUri = vscode.Uri.joinPath(document.uri, '..', source);
+        try {
+            await vscode.workspace.fs.stat(resourceUri);
+        } catch {
+            return undefined;
+        }
+
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        return new vscode.Location(resourceUri, new vscode.Position(0, 0));
     }
 
     /**

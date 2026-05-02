@@ -1,5 +1,10 @@
 # Change Log
 
+## [unreleased]
+
+### Added
+- Add Go to Definition support for FXML `@resource` references such as `@image.png` and `@style.css`
+
 ## [1.0.4] - 2026-05-02
 
 ### Added

@@ -118,6 +118,72 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should navigate @resource references relative to the current FXML file', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-resource-'));
+        try {
+            const viewsDir = path.join(tempDir, 'views');
+            const stylesDir = path.join(viewsDir, 'styles');
+            const imagesDir = path.join(viewsDir, 'images');
+            await fs.mkdir(stylesDir, { recursive: true });
+            await fs.mkdir(imagesDir, { recursive: true });
+
+            const mainFxml = path.join(viewsDir, 'Main.fxml');
+            const stylesheet = path.join(stylesDir, 'main.css');
+            const image = path.join(imagesDir, 'logo.png');
+            await fs.writeFile(stylesheet, '.root {}');
+            await fs.writeFile(image, '');
+            await fs.writeFile(
+                mainFxml,
+                [
+                    '<VBox stylesheets="@styles/main.css" tooltip="@styles/missing.css">',
+                    '  <ImageView image="@images/logo.png" accessibleText="logo.png"/>',
+                    '</VBox>',
+                ].join('\n')
+            );
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+            const provider = new FxmlDefinitionProvider();
+
+            const stylesheetLocation = await provider.provideDefinition(
+                document,
+                new vscode.Position(0, document.lineAt(0).text.indexOf('styles/main.css')),
+                new vscode.CancellationTokenSource().token
+            );
+            assert.ok(stylesheetLocation instanceof vscode.Location);
+            assertFsPathEqual(stylesheetLocation.uri.fsPath, stylesheet);
+            assert.deepStrictEqual(stylesheetLocation.range.start, new vscode.Position(0, 0));
+
+            const imageLocation = await provider.provideDefinition(
+                document,
+                new vscode.Position(1, document.lineAt(1).text.indexOf('images/logo.png')),
+                new vscode.CancellationTokenSource().token
+            );
+            assert.ok(imageLocation instanceof vscode.Location);
+            assertFsPathEqual(imageLocation.uri.fsPath, image);
+            assert.deepStrictEqual(imageLocation.range.start, new vscode.Position(0, 0));
+
+            assert.strictEqual(
+                await provider.provideDefinition(
+                    document,
+                    new vscode.Position(0, document.lineAt(0).text.indexOf('styles/missing.css')),
+                    new vscode.CancellationTokenSource().token
+                ),
+                undefined
+            );
+
+            assert.strictEqual(
+                await provider.provideDefinition(
+                    document,
+                    new vscode.Position(1, document.lineAt(1).text.lastIndexOf('logo.png')),
+                    new vscode.CancellationTokenSource().token
+                ),
+                undefined
+            );
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should navigate inherited @FXML controller members', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-inherited-'));
         try {
