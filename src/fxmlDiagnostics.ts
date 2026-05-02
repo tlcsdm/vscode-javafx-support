@@ -10,7 +10,7 @@ interface AttributeOccurrence {
 }
 
 export class FxmlDiagnosticProvider implements vscode.Disposable {
-    private readonly collection = vscode.languages.createDiagnosticCollection('javafxSupport');
+    private readonly collection = vscode.languages.createDiagnosticCollection('javafx-support');
     private readonly disposables: vscode.Disposable[];
     private readonly pendingValidations = new Map<string, vscode.CancellationTokenSource>();
 
