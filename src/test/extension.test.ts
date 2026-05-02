@@ -288,6 +288,7 @@ suite('Extension Test Suite', () => {
                 }
             });
         } finally {
+            resetFxmlControllerCacheForTests();
             await fs.rm(tempDir, { recursive: true, force: true });
         }
     });

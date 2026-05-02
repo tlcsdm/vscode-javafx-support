@@ -250,7 +250,7 @@ function getFxmlMembers(text: string): { fieldIds: ReadonlySet<string>; methodNa
         fieldIds.add(match[1]);
     }
 
-    for (const match of text.matchAll(/\bon[A-Z][\w.-]*\s*=\s*"#([^"]+)"/g)) {
+    for (const match of text.matchAll(/\bon[A-Z]\w*\s*=\s*"#([^"]+)"/g)) {
         methodNames.add(match[1]);
     }
 
