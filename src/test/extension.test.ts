@@ -298,7 +298,7 @@ suite('Extension Test Suite', () => {
                 assert.ok(codeLensToFxml instanceof vscode.Location);
                 assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
-                assert.ok(codeLensJavaLookups <= 1, 'cached Java lookups should avoid repeated inheritance scans');
+                assert.strictEqual(codeLensJavaLookups, 0, 'cached Java lookups should avoid repeated inheritance scans');
             }, pattern => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
@@ -1238,6 +1238,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Should refresh FXML diagnostics after controller saves', async function () {
+        // This exercises real document saves plus diagnostics refreshes in the extension host.
         this.timeout(5000);
 
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');

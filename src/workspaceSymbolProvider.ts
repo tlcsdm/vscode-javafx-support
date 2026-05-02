@@ -155,11 +155,13 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
     }
 
     private async getFxmlUris(): Promise<vscode.Uri[]> {
+        // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
         this.fxmlUris ??= await vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB);
         return this.fxmlUris;
     }
 
     private async getJavaUris(): Promise<vscode.Uri[]> {
+        // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
         this.javaUris ??= await vscode.workspace.findFiles(JAVA_GLOB, EXCLUDE_GLOB);
         return this.javaUris;
     }
