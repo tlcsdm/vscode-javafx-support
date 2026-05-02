@@ -372,8 +372,14 @@ suite('Extension Test Suite', () => {
 
             await withMockFindFiles([baseController, mainController, messagesProperties], async () => {
                 const diagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+                const expectedDiagnosticCodes = [
+                    'non-fxml-fx-id-field',
+                    'missing-fx-id-field',
+                    'missing-event-handler',
+                    'missing-resource-bundle-key',
+                ];
 
-                assert.strictEqual(diagnostics.length, 4);
+                assert.strictEqual(diagnostics.length, expectedDiagnosticCodes.length);
 
                 const unannotatedField = diagnostics.find(diagnostic => diagnostic.code === 'non-fxml-fx-id-field');
                 assert.ok(unannotatedField);

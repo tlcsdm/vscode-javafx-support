@@ -482,12 +482,12 @@ function mergeContinuationLines(text: string): string[] {
 }
 
 function endsWithOddNumberOfBackslashes(text: string): boolean {
-    let backslashCount = 0;
+    let trailingBackslashes = 0;
     for (let index = text.length - 1; index >= 0 && text[index] === '\\'; index--) {
-        backslashCount++;
+        trailingBackslashes++;
     }
 
-    return backslashCount % 2 === 1;
+    return trailingBackslashes % 2 === 1;
 }
 
 function readPropertyKey(line: string): string | undefined {
@@ -495,7 +495,7 @@ function readPropertyKey(line: string): string | undefined {
     let escaping = false;
 
     for (const character of line) {
-        if (!escaping && (character === '=' || character === ':' || /\s/.test(character))) {
+        if (isPropertyKeyDelimiter(character, escaping)) {
             break;
         }
 
@@ -514,6 +514,10 @@ function readPropertyKey(line: string): string | undefined {
     }
 
     return key || undefined;
+}
+
+function isPropertyKeyDelimiter(character: string, escaping: boolean): boolean {
+    return !escaping && (character === '=' || character === ':' || /\s/.test(character));
 }
 
 function findFieldStateInJavaFile(
