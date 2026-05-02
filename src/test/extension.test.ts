@@ -1666,6 +1666,7 @@ function createMockCssDocument(text: string): vscode.TextDocument {
     return createMockDocument(text, 'css', 'test.css');
 }
 
+// Normalize provider results so tests can assert items from either arrays or CompletionList objects.
 function getCompletionItems(
     completions: vscode.CompletionItem[] | vscode.CompletionList | null | undefined
 ): vscode.CompletionItem[] {
@@ -1673,6 +1674,7 @@ function getCompletionItems(
     return Array.isArray(completions) ? completions : completions.items;
 }
 
+// Completion labels can be plain strings or CompletionItemLabel objects depending on the provider.
 function getCompletionLabel(item: vscode.CompletionItem): string {
     return typeof item.label === 'string' ? item.label : item.label.label;
 }
