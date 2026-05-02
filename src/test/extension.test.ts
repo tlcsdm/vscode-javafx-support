@@ -149,6 +149,32 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'bottom');
     });
 
+    test('Should provide linked editing ranges at the end of nested FXML tag names', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<BorderPane>',
+            '  <top>',
+            '    <VBox fx:id="vboxTop" spacing="5">',
+            '      <HBox spacing="8" alignment="CENTER_LEFT">',
+            '        <Label text="%figma.url"/>',
+            '      </HBox>',
+            '    </VBox>',
+            '  </top>',
+            '</BorderPane>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(3, 11),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges.length, 2);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'HBox');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'HBox');
+    });
+
     test('Should match the nearest nested closing tag for linked editing', () => {
         const provider = new FxmlLinkedEditingRangeProvider();
         const document = createMockFxmlDocument([

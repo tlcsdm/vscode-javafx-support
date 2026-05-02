@@ -31,7 +31,7 @@ export class FxmlLinkedEditingRangeProvider implements vscode.LinkedEditingRange
         }
 
         const offset = document.offsetAt(position);
-        const currentTag = tags.find(tag => offset >= tag.nameStart && offset < tag.nameEnd);
+        const currentTag = tags.find(tag => offset >= tag.nameStart && offset <= tag.nameEnd);
         if (!currentTag?.matchingTag) {
             return undefined;
         }
