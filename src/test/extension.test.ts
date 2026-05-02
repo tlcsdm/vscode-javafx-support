@@ -332,7 +332,7 @@ suite('Extension Test Suite', () => {
 
             const baseController = path.join(javaDir, 'BaseController.java');
             const mainController = path.join(javaDir, 'MainController.java');
-            const messagesProperties = path.join(resourceDir, 'messages.properties');
+            const messagesProperties = path.join(resourceDir, 'messages_zh_CN.properties');
 
             await fs.writeFile(baseController, [
                 'package com.example;',
@@ -392,7 +392,7 @@ suite('Extension Test Suite', () => {
 
                 const missingField = diagnostics.find(diagnostic => diagnostic.code === 'missing-fx-id-field');
                 assert.ok(missingField);
-                assert.strictEqual(missingField!.severity, vscode.DiagnosticSeverity.Error);
+                assert.strictEqual(missingField!.severity, vscode.DiagnosticSeverity.Warning);
                 assert.strictEqual(missingField!.message, "Controller field 'nameField' for fx:id could not be found.");
                 assert.strictEqual(getRangeText(document, missingField!.range), 'nameField');
 
@@ -466,7 +466,7 @@ suite('Extension Test Suite', () => {
 
             const baseController = path.join(javaDir, 'BaseController.java');
             const mainController = path.join(javaDir, 'MainController.java');
-            const messagesProperties = path.join(resourceDir, 'messages.properties');
+            const messagesProperties = path.join(resourceDir, 'messages_zh_CN.properties');
             const mainFxml = path.join(resourceDir, 'Main.fxml');
 
             await fs.writeFile(baseController, [
@@ -958,12 +958,9 @@ async function withMockFindFiles(
     workspace.findFiles = async (include: vscode.GlobPattern) => {
         const pattern = typeof include === 'string' ? include : include.pattern;
         onFindFiles?.(pattern);
-        if (pattern === '**/*.fxml') {
-            return files.filter(file => file.endsWith('.fxml')).map(file => vscode.Uri.file(file));
-        }
-
-        const suffix = pattern.replace(/^\*\*\//, '');
-        return files.filter(file => toGlobPath(file).endsWith(suffix)).map(file => vscode.Uri.file(file));
+        return files
+            .filter(file => matchesMockGlob(file, pattern))
+            .map(file => vscode.Uri.file(file));
     };
 
     try {
@@ -984,6 +981,18 @@ function normalizeFsPath(filePath: string): string {
 
 function toGlobPath(filePath: string): string {
     return filePath.replace(/\\/g, '/');
+}
+
+function matchesMockGlob(filePath: string, pattern: string): boolean {
+    const escapedPattern = escapeRegex(pattern)
+        .replace(/\\\*\\\*/g, '.*')
+        .replace(/\\\*/g, '[^/]*');
+
+    return new RegExp(`^${escapedPattern}$`).test(toGlobPath(filePath));
+}
+
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {

@@ -213,7 +213,7 @@ export async function collectFxmlDiagnostics(
                 fieldState === 'unannotated'
                     ? vscode.l10n.t("Controller field '{0}' exists but is not annotated with @FXML.", fxId)
                     : vscode.l10n.t("Controller field '{0}' for fx:id could not be found.", fxId),
-                fieldState === 'unannotated' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error,
+                vscode.DiagnosticSeverity.Warning,
                 fieldState === 'unannotated' ? 'non-fxml-fx-id-field' : 'missing-fx-id-field'
             ));
         }
@@ -376,8 +376,7 @@ async function collectResourceBundleKeys(
     const keys = new Set<string>();
     let sawPropertiesFile = false;
     for (const bundleName of bundleNames) {
-        const bundlePath = bundleName.replace(/\./g, '/');
-        const bundleFiles = await vscode.workspace.findFiles(`**/${bundlePath}.properties`, '**/node_modules/**');
+        const bundleFiles = await findResourceBundleFiles(bundleName, token);
         for (const bundleFile of bundleFiles) {
             if (token.isCancellationRequested) {
                 return undefined;
@@ -392,6 +391,27 @@ async function collectResourceBundleKeys(
     }
 
     return sawPropertiesFile ? keys : undefined;
+}
+
+async function findResourceBundleFiles(bundleName: string, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
+    const bundlePath = bundleName.replace(/\./g, '/');
+    const bundlePatterns = [
+        `**/${bundlePath}.properties`,
+        `**/${bundlePath}_*.properties`,
+    ];
+    const bundleFiles = new Map<string, vscode.Uri>();
+
+    for (const pattern of bundlePatterns) {
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
+        for (const file of await vscode.workspace.findFiles(pattern, '**/node_modules/**')) {
+            bundleFiles.set(file.toString(), file);
+        }
+    }
+
+    return [...bundleFiles.values()];
 }
 
 async function collectResourceBundleBaseNames(
