@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { classExtends } from './javaControllerResolver';
 
 /**
  * Provides CodeLens for @FXML annotated fields and methods in Java controller classes.
@@ -138,13 +139,44 @@ export async function goToFxmlCommand(
     memberName: string,
     isMethod: boolean
 ): Promise<void> {
+    const tokenSource = new vscode.CancellationTokenSource();
+    try {
+        const location = await findFxmlMemberLocation(controllerClassName, memberName, isMethod, tokenSource.token);
+        if (location) {
+            await vscode.window.showTextDocument(location.uri, {
+                selection: location.range,
+                preserveFocus: false
+            });
+            return;
+        }
+    } finally {
+        tokenSource.dispose();
+    }
+
+    vscode.window.showInformationMessage(`No FXML reference found for '${memberName}'.`);
+}
+
+export async function findFxmlMemberLocation(
+    controllerClassName: string,
+    memberName: string,
+    isMethod: boolean,
+    token: vscode.CancellationToken
+): Promise<vscode.Location | undefined> {
     const fxmlFiles = await vscode.workspace.findFiles('**/*.fxml', '**/node_modules/**');
 
     for (const fxmlUri of fxmlFiles) {
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         const document = await vscode.workspace.openTextDocument(fxmlUri);
         const text = document.getText();
+        const controllerInFxml = getControllerClassName(text);
 
-        if (!text.includes(`fx:controller="${controllerClassName}"`)) {
+        if (!controllerInFxml || (
+            controllerInFxml !== controllerClassName
+            && !await classExtends(controllerInFxml, controllerClassName, token)
+        )) {
             continue;
         }
 
@@ -154,16 +186,24 @@ export async function goToFxmlCommand(
         if (isMethod) {
             const pattern = new RegExp(`=\\s*"#${escapeRegex(memberName)}"`);
             for (let i = 0; i < document.lineCount; i++) {
+                if (token.isCancellationRequested) {
+                    return undefined;
+                }
+
                 const match = pattern.exec(document.lineAt(i).text);
                 if (match) {
                     targetLine = i;
-                    targetChar = match.index + 2;
+                    targetChar = match.index + match[0].indexOf(memberName);
                     break;
                 }
             }
         } else {
             const pattern = new RegExp(`fx:id="${escapeRegex(memberName)}"`);
             for (let i = 0; i < document.lineCount; i++) {
+                if (token.isCancellationRequested) {
+                    return undefined;
+                }
+
                 const match = pattern.exec(document.lineAt(i).text);
                 if (match) {
                     targetLine = i;
@@ -175,15 +215,16 @@ export async function goToFxmlCommand(
 
         if (targetLine >= 0) {
             const position = new vscode.Position(targetLine, targetChar);
-            await vscode.window.showTextDocument(document, {
-                selection: new vscode.Range(position, position),
-                preserveFocus: false
-            });
-            return;
+            return new vscode.Location(fxmlUri, new vscode.Range(position, position));
         }
     }
 
-    vscode.window.showInformationMessage(`No FXML reference found for '${memberName}'.`);
+    return undefined;
+}
+
+function getControllerClassName(text: string): string | undefined {
+    const match = text.match(/fx:controller\s*=\s*"([^"]+)"/);
+    return match ? match[1] : undefined;
 }
 
 function escapeRegex(str: string): string {

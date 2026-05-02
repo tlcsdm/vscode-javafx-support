@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
-import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
+import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
@@ -144,7 +144,12 @@ suite('Extension Test Suite', () => {
             await fs.writeFile(mainController, [
                 'package com.example;',
                 '',
+                'import javafx.scene.control.Button;',
+                '',
                 'public class MainController extends BaseController {',
+                '    public void initialize() {',
+                '        sharedButton = new Button();',
+                '    }',
                 '}',
             ].join('\n'));
             await fs.writeFile(mainFxml, [
@@ -178,6 +183,22 @@ suite('Extension Test Suite', () => {
                 assert.ok(javaToFxml instanceof vscode.Location);
                 assertFsPathEqual(javaToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(javaToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
+
+                const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(
+                    baseDocument,
+                    new vscode.CancellationTokenSource().token
+                );
+                assert.ok(codeLenses.some(codeLens => codeLens.command?.arguments?.[1] === 'sharedButton'));
+
+                const codeLensToFxml = await findFxmlMemberLocation(
+                    'com.example.BaseController',
+                    'sharedButton',
+                    false,
+                    new vscode.CancellationTokenSource().token
+                );
+                assert.ok(codeLensToFxml instanceof vscode.Location);
+                assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
+                assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });

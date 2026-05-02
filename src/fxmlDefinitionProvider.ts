@@ -230,9 +230,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             }
 
             if (isMethod) {
-                // Look for method declaration
-                const methodPattern = new RegExp(`\\b${this.escapeRegex(memberName)}\\s*\\(`);
-                const methodMatch = methodPattern.exec(lineText);
+                const methodMatch = this.getMethodDeclarationMatch(lineText, memberName);
                 if (methodMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, methodMatch.index));
                     // Prefer @FXML-annotated method (annotation should be on preceding line)
@@ -244,9 +242,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
                     }
                 }
             } else {
-                // Look for field declaration
-                const fieldPattern = new RegExp(`\\b${this.escapeRegex(memberName)}\\s*[;=,)]`);
-                const fieldMatch = fieldPattern.exec(lineText);
+                const fieldMatch = this.getFieldDeclarationMatch(lineText, memberName);
                 if (fieldMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, fieldMatch.index));
                     // Prefer @FXML-annotated field
@@ -266,6 +262,44 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return bestMatch;
+    }
+
+    private getMethodDeclarationMatch(line: string, methodName: string): RegExpExecArray | undefined {
+        const methodPattern = new RegExp(`\\b${this.escapeRegex(methodName)}\\s*\\(`);
+        const methodMatch = methodPattern.exec(line);
+        if (!methodMatch) {
+            return undefined;
+        }
+
+        const prefix = line.slice(0, methodMatch.index).trimEnd();
+        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
+            return undefined;
+        }
+
+        if (/\b(?:if|for|while|switch|catch|new|return|throw)\s*$/.test(prefix)) {
+            return undefined;
+        }
+
+        return /\b[\w$<>[\].?]+\s*$/.test(prefix) ? methodMatch : undefined;
+    }
+
+    private getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
+        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,])`);
+        const fieldMatch = fieldPattern.exec(line);
+        if (!fieldMatch) {
+            return undefined;
+        }
+
+        const prefix = line.slice(0, fieldMatch.index).trim();
+        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
+            return undefined;
+        }
+
+        if (/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix)) {
+            return undefined;
+        }
+
+        return fieldMatch;
     }
 
     private escapeRegex(str: string): string {
