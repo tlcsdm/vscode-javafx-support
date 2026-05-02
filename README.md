@@ -12,7 +12,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 🚨 **FXML Diagnostics** - Surface missing controller classes and duplicate `fx:id` values directly in the Problems panel
 - 🔗 **FXML → Controller & Resource Navigation** - Ctrl+Click on `fx:controller`, `onAction`, `fx:id`, `@image.png`, or `@style.css` in FXML to jump to the corresponding controller code or referenced resource file
 - 🔗 **Controller → FXML Navigation** - Ctrl+Click on `@FXML` annotated variables or methods in the Controller class to jump to the corresponding location in the FXML file
-- 💡 **FXML Hover** - Optionally show JavaFX tag summaries plus controller field and event handler signatures on hover
+- 💡 **FXML Hover** - Optionally show controller field and event handler comments on hover
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
 ## Installation
@@ -71,9 +71,8 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 
 ### FXML Hover
 
-- When enabled, hovering a JavaFX tag such as `<VBox>` shows a short JavaFX summary
-- Hovering `fx:id="myButton"` shows the matching controller field declaration such as `Button myButton`
-- Hovering `onAction="#handleClick"` shows the matching controller method signature, including inherited members
+- Hovering `fx:id="myButton"` shows the matching controller field comment, including inherited members
+- Hovering `onAction="#handleClick"` shows the matching controller method comment, including inherited members
 - Hover is disabled by default and can be enabled with a configurable delay
 
 ### FXML Diagnostics
@@ -88,9 +87,9 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `tlcsdm.javafxSupport.sceneBuilderPath` | Path to Scene Builder executable | `""` (auto-detect) |
+| `tlcsdm.javafxSupport.hover.enabled` | Enable FXML hover information for controller comments referenced by `fx:id` and event handlers | `false` |
 | `tlcsdm.javafxSupport.outline.showFxId` | Show `fx:id` details in the FXML Outline view | `true` |
 | `tlcsdm.javafxSupport.outline.showText` | Show `text` details in the FXML Outline view | `true` |
-| `tlcsdm.javafxSupport.hover.enabled` | Enable FXML hover information for JavaFX tags and controller bindings | `false` |
 | `tlcsdm.javafxSupport.hover.delay` | Delay in milliseconds before showing FXML hover information | `300` |
 
 ## Development

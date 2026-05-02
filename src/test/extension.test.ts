@@ -294,7 +294,7 @@ suite('Extension Test Suite', () => {
         }
     });
 
-    test('Should provide JavaFX tag hover when enabled', async () => {
+    test('Should only provide controller comment hovers when enabled', async () => {
         const provider = new FxmlHoverProvider();
         const document = createMockFxmlDocument('<VBox><Label text="Name"/></VBox>');
 
@@ -308,9 +308,7 @@ suite('Extension Test Suite', () => {
                 new vscode.CancellationTokenSource().token
             );
 
-            assert.ok(hover);
-            assert.match(getHoverText(hover), /\*\*VBox\*\*/);
-            assert.match(getHoverText(hover), /single vertical column/);
+            assert.strictEqual(hover, undefined);
         });
     });
 
@@ -334,9 +332,15 @@ suite('Extension Test Suite', () => {
                 'import javafx.scene.control.Button;',
                 '',
                 'public class BaseController {',
+                '    /**',
+                '     * Comment for the shared button field.',
+                '     */',
                 '    @FXML',
                 '    protected Button sharedButton;',
                 '',
+                '    /**',
+                '     * Comment for the click handler method.',
+                '     */',
                 '    @FXML',
                 '    protected void handleClick(ActionEvent event) {',
                 '    }',
@@ -370,7 +374,7 @@ suite('Extension Test Suite', () => {
                         new vscode.CancellationTokenSource().token
                     );
                     assert.ok(fieldHover);
-                    assert.match(getHoverText(fieldHover), /Button sharedButton/);
+                    assert.match(getHoverText(fieldHover), /Comment for the shared button field\./);
                     assert.match(getHoverText(fieldHover), /Declared in `BaseController`\./);
 
                     const methodHover = await provider.provideHover(
@@ -379,7 +383,7 @@ suite('Extension Test Suite', () => {
                         new vscode.CancellationTokenSource().token
                     );
                     assert.ok(methodHover);
-                    assert.match(getHoverText(methodHover), /void handleClick\(ActionEvent event\)/);
+                    assert.match(getHoverText(methodHover), /Comment for the click handler method\./);
                     assert.match(getHoverText(methodHover), /Declared in `BaseController`\./);
                 });
             });
@@ -1218,7 +1222,8 @@ function getRangeText(document: vscode.TextDocument, range: vscode.Range): strin
 
 function getHoverText(hover: vscode.Hover): string {
     return hover.contents
-        .map(content => typeof content === 'string' ? content : content.value)
+        // MarkdownString.appendText encodes spaces as &nbsp; in the serialized value.
+        .map(content => (typeof content === 'string' ? content : content.value).replace(/&nbsp;/g, ' '))
         .join('\n');
 }
 

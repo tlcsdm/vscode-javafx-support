@@ -9,6 +9,6 @@
     "config.sceneBuilderPath.description": "Scene Builder 実行ファイルのパス。空の場合、拡張機能は自動的に検索します。",
     "config.outline.showFxId.description": "FXML アウトラインビューに fx:id 属性を表示します。",
     "config.outline.showText.description": "FXML アウトラインビューに text 属性を表示します。",
-    "config.hover.enabled.description": "JavaFX タグ、fx:id バインド、コントローラーのイベントハンドラーに対する FXML ホバー情報を有効にします。",
+    "config.hover.enabled.description": "fx:id バインドとイベントハンドラー参照に対応するコントローラーコメントの FXML ホバー情報を有効にします。",
     "config.hover.delay.description": "FXML ホバー情報を表示するまでの遅延時間（ミリ秒）。"
 }
