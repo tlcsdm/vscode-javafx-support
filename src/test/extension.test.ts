@@ -510,6 +510,59 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should ignore FXML build directories when providing workspace symbols', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-fxml-build-'));
+        try {
+            const sourceFxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            const generatedFxmlDir = path.join(tempDir, 'target', 'classes', 'com', 'example');
+            await fs.mkdir(sourceFxmlDir, { recursive: true });
+            await fs.mkdir(generatedFxmlDir, { recursive: true });
+
+            const sourceFxmlPath = path.join(sourceFxmlDir, 'Light.fxml');
+            const generatedFxmlPath = path.join(generatedFxmlDir, 'Light.fxml');
+
+            await fs.writeFile(sourceFxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1">',
+                '  <Label fx:id="lblActualLevel" text="Actual level" />',
+                '</VBox>',
+            ].join('\n'));
+            await fs.writeFile(generatedFxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1">',
+                '  <Label fx:id="lblActualLevel" text="Generated level" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const provider = new WorkspaceSymbolProvider();
+            const openedFiles: string[] = [];
+            try {
+                await withMockFindFiles([sourceFxmlPath, generatedFxmlPath], async () => {
+                    await withMockOpenTextDocument(async () => {
+                        const symbols = await provider.provideWorkspaceSymbols(
+                            'actuallevel',
+                            new vscode.CancellationTokenSource().token
+                        );
+
+                        assert.strictEqual(symbols.length, 1);
+                        assertFsPathEqual(symbols[0].location.uri.fsPath, sourceFxmlPath);
+                        assert.strictEqual(symbols[0].name, 'lblActualLevel');
+                        assert.strictEqual(symbols[0].kind, vscode.SymbolKind.Variable);
+
+                        assert.ok(openedFiles.includes(normalizeFsPath(sourceFxmlPath)));
+                        assert.ok(!openedFiles.includes(normalizeFsPath(generatedFxmlPath)));
+                    }, uri => {
+                        openedFiles.push(normalizeFsPath(uri.fsPath));
+                    });
+                });
+            } finally {
+                provider.dispose();
+            }
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should reuse cached workspace symbols for repeated queries', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-cache-'));
         try {

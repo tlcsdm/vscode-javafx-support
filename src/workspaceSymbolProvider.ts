@@ -5,7 +5,7 @@ import { getFullyQualifiedClassName } from './javaControllerResolver';
 const FXML_GLOB = '**/*.fxml';
 const JAVA_GLOB = '**/*.java';
 const EXCLUDE_GLOB = '**/node_modules/**';
-const IGNORED_JAVA_DIRECTORY_SEGMENTS = new Set([
+const IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS = new Set([
     'bin',
     'build',
     'node_modules',
@@ -88,7 +88,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         token: vscode.CancellationToken
     ): Promise<void> {
         await this.refreshSymbols(
-            uris,
+            uris.filter(uri => !this.isIgnoredWorkspaceSymbolUri(uri)),
             this.fxmlSymbols,
             uri => this.readFxmlSymbols(uri),
             token
@@ -100,7 +100,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         token: vscode.CancellationToken
     ): Promise<void> {
         await this.refreshSymbols(
-            uris.filter(uri => !this.isIgnoredJavaUri(uri)),
+            uris.filter(uri => !this.isIgnoredWorkspaceSymbolUri(uri)),
             this.javaSymbols,
             uri => this.readJavaSymbols(uri),
             token
@@ -300,9 +300,9 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         return document.uri.scheme === 'file' && document.fileName.endsWith('.java');
     }
 
-    private isIgnoredJavaUri(uri: vscode.Uri): boolean {
+    private isIgnoredWorkspaceSymbolUri(uri: vscode.Uri): boolean {
         const normalizedPath = `${path.sep}${path.normalize(uri.fsPath).toLowerCase()}${path.sep}`;
-        for (const segment of IGNORED_JAVA_DIRECTORY_SEGMENTS) {
+        for (const segment of IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS) {
             if (normalizedPath.includes(`${path.sep}${segment}${path.sep}`)) {
                 return true;
             }
