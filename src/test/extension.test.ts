@@ -1478,16 +1478,23 @@ async function withMockOpenTextDocument(
 ): Promise<void> {
     const workspace = vscode.workspace as unknown as { openTextDocument: typeof vscode.workspace.openTextDocument };
     const originalOpenTextDocument = workspace.openTextDocument;
-    workspace.openTextDocument = (async (...args: unknown[]) => {
-        const [target] = args;
-        if (target instanceof vscode.Uri) {
-            onOpenTextDocument?.(target);
-        } else if (typeof target === 'string') {
-            onOpenTextDocument?.(vscode.Uri.file(target));
+    const mockedOpenTextDocument = ((
+        uriOrFileName: vscode.Uri | string,
+        options?: { encoding?: string; language?: string }
+    ) => {
+        if (uriOrFileName instanceof vscode.Uri) {
+            onOpenTextDocument?.(uriOrFileName);
+        } else {
+            onOpenTextDocument?.(vscode.Uri.file(uriOrFileName));
         }
 
-        return await (originalOpenTextDocument as (...originalArgs: unknown[]) => Thenable<vscode.TextDocument>)(...args);
+        if (uriOrFileName instanceof vscode.Uri) {
+            return originalOpenTextDocument(uriOrFileName);
+        }
+
+        return originalOpenTextDocument(uriOrFileName, options);
     }) as typeof vscode.workspace.openTextDocument;
+    workspace.openTextDocument = mockedOpenTextDocument;
 
     try {
         await run();

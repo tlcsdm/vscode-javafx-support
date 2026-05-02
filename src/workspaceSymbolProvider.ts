@@ -41,7 +41,6 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
             javaWatcher.onDidChange(uri => this.invalidateJavaUri(uri)),
             javaWatcher.onDidDelete(uri => this.invalidateJavaUri(uri)),
             vscode.workspace.onDidChangeTextDocument(event => this.invalidateDocument(event.document)),
-            vscode.workspace.onDidSaveTextDocument(document => this.invalidateDocument(document)),
         );
     }
 
