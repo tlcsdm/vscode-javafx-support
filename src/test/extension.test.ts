@@ -490,7 +490,7 @@ suite('Extension Test Suite', () => {
                 );
 
                 assert.ok(symbols);
-                const javaSymbols = symbols!.filter(symbol =>
+                const javaSymbols = symbols.filter(symbol =>
                     symbol.kind === vscode.SymbolKind.Field
                 );
 

@@ -205,7 +205,12 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
 
     private isIgnoredJavaUri(uri: vscode.Uri): boolean {
         const normalizedPath = `${path.sep}${path.normalize(uri.fsPath).toLowerCase()}${path.sep}`;
-        return [...IGNORED_JAVA_DIRECTORY_SEGMENTS]
-            .some(segment => normalizedPath.includes(`${path.sep}${segment}${path.sep}`));
+        for (const segment of IGNORED_JAVA_DIRECTORY_SEGMENTS) {
+            if (normalizedPath.includes(`${path.sep}${segment}${path.sep}`)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
