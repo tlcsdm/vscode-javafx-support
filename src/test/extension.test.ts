@@ -493,10 +493,17 @@ suite('Extension Test Suite', () => {
                 const javaSymbols = symbols.filter(symbol =>
                     symbol.kind === vscode.SymbolKind.Field
                 );
+                const fxmlSymbols = symbols.filter(symbol =>
+                    symbol.kind === vscode.SymbolKind.Variable
+                );
 
                 assert.strictEqual(javaSymbols.length, 1);
                 assertFsPathEqual(javaSymbols[0].location.uri.fsPath, sourceControllerPath);
                 assert.strictEqual(javaSymbols[0].name, 'submitButton');
+
+                assert.strictEqual(fxmlSymbols.length, 1);
+                assertFsPathEqual(fxmlSymbols[0].location.uri.fsPath, fxmlPath);
+                assert.strictEqual(fxmlSymbols[0].name, 'submitButton');
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
