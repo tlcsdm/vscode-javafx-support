@@ -4,8 +4,7 @@
 
 ### Added
 - Add Go to Definition support for FXML `@resource` references such as `@image.png` and `@style.css`
-- Add FXML diagnostics for missing `fx:controller` classes and duplicate `fx:id` values
-- Localize FXML diagnostic messages in English, Simplified Chinese, and Japanese
+- Add FXML diagnostics for missing `fx:controller` classes, duplicate `fx:id` values, unresolved controller fields, missing event handlers, and missing statically inferred ResourceBundle keys
 
 ## [1.0.4] - 2026-05-02
 

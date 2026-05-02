@@ -71,8 +71,10 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 ### FXML Diagnostics
 
 - Missing `fx:controller` classes are reported as errors
+- `fx:id` values without matching controller fields are reported as warnings or errors depending on whether an unannotated field already exists
+- Missing controller event handlers such as `#handleClick` are reported as errors
+- Missing `%key` ResourceBundle entries are reported as warnings when the controller hierarchy statically resolves a local bundle file
 - Duplicate `fx:id` values in the same FXML file are reported as errors
-- Diagnostic messages follow the current VS Code display language (English, 简体中文, 日本語)
 
 ## Configuration
 
