@@ -155,19 +155,18 @@ export async function collectFxmlDiagnostics(
 
         for (let index = 0; index < occurrences.length; index++) {
             const occurrence = occurrences[index];
-            const relatedOccurrence = index === 0 ? occurrences[1] : occurrences[0];
             const diagnostic = createDiagnostic(
                 occurrence.range,
                 `Duplicate fx:id '${fxId}'.`,
                 vscode.DiagnosticSeverity.Error,
                 'duplicate-fx-id'
             );
-            diagnostic.relatedInformation = [
-                new vscode.DiagnosticRelatedInformation(
+            diagnostic.relatedInformation = occurrences
+                .filter((_, relatedIndex) => relatedIndex !== index)
+                .map(relatedOccurrence => new vscode.DiagnosticRelatedInformation(
                     new vscode.Location(document.uri, relatedOccurrence.range),
                     `Another '${fxId}' is declared here.`
-                ),
-            ];
+                ));
             diagnostics.push(diagnostic);
         }
     }
