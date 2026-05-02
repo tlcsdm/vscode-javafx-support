@@ -756,6 +756,15 @@ suite('Extension Test Suite', () => {
         const provider = new JavafxCssCompletionProvider();
         const document = createMockCssDocument('.root { -fx }');
 
+        assert.strictEqual(
+            await provider.provideCompletionItems(
+                createMockCssDocument('.root { -f }'),
+                new vscode.Position(0, '.root { -f'.length),
+                new vscode.CancellationTokenSource().token
+            ),
+            undefined
+        );
+
         const completionsAfterFx = await provider.provideCompletionItems(
             document,
             new vscode.Position(0, document.lineAt(0).text.indexOf('-fx') + '-fx'.length),

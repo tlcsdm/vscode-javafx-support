@@ -37,6 +37,7 @@ const EXCLUDED_VALUE_SUGGESTIONS = new Set([
     'value',
 ]);
 const FX_PROPERTY_TOKEN_PATTERN = '-fx-[a-z0-9]+(?:-[a-z0-9]+)*';
+// Allow "-fx" during progressive typing so suggestions can appear before the final dash is entered.
 const FX_PROPERTY_PREFIX_PATTERN = /(^|\s)(-fx|-fx-(?:[a-z0-9]+(?:-[a-z0-9]+)*)?)$/i;
 const FX_PROPERTY_DECLARATION_PATTERN = new RegExp(`(${FX_PROPERTY_TOKEN_PATTERN})\\s*:(\\s*[^;}]*)$`, 'i');
 const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
@@ -257,6 +258,7 @@ function getCssDocumentContext(document: vscode.TextDocument, position: vscode.P
 
 function getFxmlStyleAttributeContext(lineText: string, character: number): CssDocumentContext | undefined {
     const linePrefix = lineText.slice(0, character);
+    // Match a style attribute value up to the cursor, including escaped characters but not the opening quote.
     const attributeMatch = /\bstyle\s*=\s*(["'])((?:\\.|(?!\1).)*)$/i.exec(linePrefix);
     if (!attributeMatch) {
         return undefined;
