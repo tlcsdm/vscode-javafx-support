@@ -7,6 +7,7 @@ import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
 import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
+import { collectFxmlDiagnostics } from '../fxmlDiagnostics';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
@@ -280,6 +281,75 @@ suite('Extension Test Suite', () => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
                 }
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should report missing controllers and duplicate fx:id values', async () => {
+        const document = createMockFxmlDocument([
+            '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+            '  <Button fx:id="submitButton" />',
+            '  <Label fx:id="submitButton" />',
+            '</VBox>',
+        ].join('\n'));
+
+        await withMockFindFiles([], async () => {
+            const diagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+
+            assert.strictEqual(diagnostics.length, 3);
+
+            const missingController = diagnostics.find(diagnostic => diagnostic.code === 'missing-controller');
+            assert.ok(missingController);
+            assert.strictEqual(missingController!.severity, vscode.DiagnosticSeverity.Error);
+            assert.strictEqual(getRangeText(document, missingController!.range), 'com.example.MissingController');
+
+            const duplicateFxIds = diagnostics.filter(diagnostic => diagnostic.code === 'duplicate-fx-id');
+            assert.strictEqual(duplicateFxIds.length, 2);
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.severity === vscode.DiagnosticSeverity.Error));
+            assert.deepStrictEqual(
+                duplicateFxIds.map(diagnostic => getRangeText(document, diagnostic.range)),
+                ['submitButton', 'submitButton']
+            );
+            assert.ok(duplicateFxIds.every(diagnostic => (diagnostic.relatedInformation?.length ?? 0) === 1));
+        });
+    });
+
+    test('Should update FXML diagnostics when the document changes', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-diagnostics-'));
+        try {
+            const fxmlPath = path.join(tempDir, 'Main.fxml');
+            await fs.writeFile(fxmlPath, [
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+                '  <Button fx:id="submitButton" />',
+                '  <Label fx:id="submitButton" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+
+            await withMockFindFiles([], async () => {
+                await waitForDiagnostics(document.uri, diagnostics => diagnostics.length === 3);
+
+                const edit = new vscode.WorkspaceEdit();
+                edit.replace(
+                    document.uri,
+                    new vscode.Range(new vscode.Position(2, 0), new vscode.Position(2, document.lineAt(2).text.length)),
+                    '  <Label fx:id="statusLabel" />'
+                );
+                await vscode.workspace.applyEdit(edit);
+
+                const updatedDiagnostics = await waitForDiagnostics(
+                    document.uri,
+                    diagnostics => diagnostics.length === 1 && diagnostics[0].code === 'missing-controller'
+                );
+
+                assert.strictEqual(updatedDiagnostics.length, 1);
+                assert.strictEqual(updatedDiagnostics[0].code, 'missing-controller');
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -667,6 +737,26 @@ function createCancelledToken(): vscode.CancellationToken {
     const source = new vscode.CancellationTokenSource();
     source.cancel();
     return source.token;
+}
+
+async function waitForDiagnostics(
+    uri: vscode.Uri,
+    predicate: (diagnostics: readonly vscode.Diagnostic[]) => boolean,
+    timeoutMs = 5000
+): Promise<readonly vscode.Diagnostic[]> {
+    const deadline = Date.now() + timeoutMs;
+    let diagnostics = vscode.languages.getDiagnostics(uri);
+
+    while (!predicate(diagnostics)) {
+        if (Date.now() >= deadline) {
+            assert.fail(`Timed out waiting for diagnostics. Last diagnostics: ${diagnostics.map(diagnostic => diagnostic.message).join(', ')}`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 25));
+        diagnostics = vscode.languages.getDiagnostics(uri);
+    }
+
+    return diagnostics;
 }
 
 async function withMockFindFiles(

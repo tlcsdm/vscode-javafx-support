@@ -4,6 +4,7 @@
 
 ### Added
 - Add Go to Definition support for FXML `@resource` references such as `@image.png` and `@style.css`
+- Add FXML diagnostics for missing `fx:controller` classes and duplicate `fx:id` values
 
 ## [1.0.4] - 2026-05-02
 

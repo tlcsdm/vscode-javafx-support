@@ -7,6 +7,7 @@ import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
 import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
 import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
+import { FxmlDiagnosticProvider } from './fxmlDiagnostics';
 
 /**
  * Extension activation
@@ -107,6 +108,7 @@ export function activate(context: vscode.ExtensionContext): void {
             new FxmlFormattingEditProvider()
         )
     );
+    context.subscriptions.push(new FxmlDiagnosticProvider());
 
     // Ensure .fxml files use the fxml language (prevent XML extension override)
     const ensureFxmlLanguage = (document: vscode.TextDocument) => {
