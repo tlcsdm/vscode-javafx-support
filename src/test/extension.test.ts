@@ -7,9 +7,13 @@ import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
 import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
+import { collectFxmlDiagnostics } from '../fxmlDiagnostics';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
+
+const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
+const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -280,6 +284,226 @@ suite('Extension Test Suite', () => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
                 }
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should report missing controllers and duplicate fx:id values', async () => {
+        const document = createMockFxmlDocument([
+            '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+            '  <Button fx:id="submitButton" />',
+            '  <Label fx:id="submitButton" />',
+            '</VBox>',
+        ].join('\n'));
+
+        await withMockFindFiles([], async () => {
+            const diagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+
+            assert.strictEqual(diagnostics.length, 3);
+
+            const missingController = diagnostics.find(diagnostic => diagnostic.code === 'missing-controller');
+            assert.ok(missingController);
+            assert.strictEqual(missingController!.severity, vscode.DiagnosticSeverity.Error);
+            assert.strictEqual(missingController!.message, "Controller class 'com.example.MissingController' could not be found.");
+            assert.strictEqual(getRangeText(document, missingController!.range), 'com.example.MissingController');
+
+            const duplicateFxIds = diagnostics.filter(diagnostic => diagnostic.code === 'duplicate-fx-id');
+            assert.strictEqual(duplicateFxIds.length, 2);
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.severity === vscode.DiagnosticSeverity.Error));
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.message === "Duplicate fx:id 'submitButton'."));
+            assert.deepStrictEqual(
+                duplicateFxIds.map(diagnostic => getRangeText(document, diagnostic.range)),
+                ['submitButton', 'submitButton']
+            );
+            assert.ok(duplicateFxIds.every(diagnostic => (diagnostic.relatedInformation?.length ?? 0) === 1));
+            assert.ok(duplicateFxIds.every(diagnostic => diagnostic.relatedInformation?.[0].message === "Another 'submitButton' is declared here."));
+        });
+    });
+
+    test('Should report missing controller members', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+
+            const baseController = path.join(javaDir, 'BaseController.java');
+            const mainController = path.join(javaDir, 'MainController.java');
+
+            await fs.writeFile(baseController, [
+                'package com.example;',
+                '',
+                'import javafx.scene.control.Label;',
+                '',
+                'public class BaseController {',
+                '    protected Label statusLabel;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainController, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController extends BaseController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '',
+                '    @FXML',
+                '    private void handleSubmit() {',
+                '    }',
+                '}',
+            ].join('\n'));
+            const document = createMockFxmlDocument([
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Label fx:id="statusLabel" />',
+                '  <Button fx:id="submitButton" onAction="#handleSubmit" />',
+                '  <TextField fx:id="nameField" onAction="#missingHandler" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([baseController, mainController], async () => {
+                const diagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+                const expectedDiagnosticCodes = [
+                    'non-fxml-fx-id-field',
+                    'missing-fx-id-field',
+                    'missing-event-handler',
+                ];
+
+                assert.strictEqual(diagnostics.length, expectedDiagnosticCodes.length);
+
+                const unannotatedField = diagnostics.find(diagnostic => diagnostic.code === 'non-fxml-fx-id-field');
+                assert.ok(unannotatedField);
+                assert.strictEqual(unannotatedField!.severity, vscode.DiagnosticSeverity.Warning);
+                assert.strictEqual(unannotatedField!.message, "Controller field 'statusLabel' exists but is not annotated with @FXML.");
+                assert.strictEqual(getRangeText(document, unannotatedField!.range), 'statusLabel');
+
+                const missingField = diagnostics.find(diagnostic => diagnostic.code === 'missing-fx-id-field');
+                assert.ok(missingField);
+                assert.strictEqual(missingField!.severity, vscode.DiagnosticSeverity.Warning);
+                assert.strictEqual(missingField!.message, "Controller field 'nameField' for fx:id could not be found.");
+                assert.strictEqual(getRangeText(document, missingField!.range), 'nameField');
+
+                const missingHandler = diagnostics.find(diagnostic => diagnostic.code === 'missing-event-handler');
+                assert.ok(missingHandler);
+                assert.strictEqual(missingHandler!.severity, vscode.DiagnosticSeverity.Error);
+                assert.strictEqual(missingHandler!.message, "Event handler 'missingHandler' could not be found in the controller.");
+                assert.strictEqual(getRangeText(document, missingHandler!.range), 'missingHandler');
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should update FXML diagnostics when the document changes', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-diagnostics-'));
+        try {
+            const fxmlPath = path.join(tempDir, 'Main.fxml');
+            await fs.writeFile(fxmlPath, [
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+                '  <Button fx:id="submitButton" />',
+                '  <Label fx:id="submitButton" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+
+            await withMockFindFiles([], async () => {
+                await waitForDiagnostics(document.uri, diagnostics => diagnostics.length === 3);
+
+                const edit = new vscode.WorkspaceEdit();
+                edit.replace(
+                    document.uri,
+                    new vscode.Range(new vscode.Position(2, 0), new vscode.Position(2, document.lineAt(2).text.length)),
+                    '  <Label fx:id="statusLabel" />'
+                );
+                await vscode.workspace.applyEdit(edit);
+
+                const updatedDiagnostics = await waitForDiagnostics(
+                    document.uri,
+                    diagnostics => diagnostics.length === 1 && diagnostics[0].code === 'missing-controller'
+                );
+
+                assert.strictEqual(updatedDiagnostics.length, 1);
+                assert.strictEqual(updatedDiagnostics[0].code, 'missing-controller');
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should refresh FXML diagnostics after controller saves', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_REFRESH_TEMP_PREFIX));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(resourceDir, { recursive: true });
+
+            const baseController = path.join(javaDir, 'BaseController.java');
+            const mainController = path.join(javaDir, 'MainController.java');
+            const mainFxml = path.join(resourceDir, 'Main.fxml');
+
+            await fs.writeFile(baseController, [
+                'package com.example;',
+                '',
+                'public class BaseController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainController, [
+                'package com.example;',
+                '',
+                'public class MainController extends BaseController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainFxml, [
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" onAction="#handleSubmit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([baseController, mainController], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+                await waitForDiagnostics(
+                    fxmlDocument.uri,
+                    diagnostics => diagnostics.length === 2
+                        && diagnostics.some(diagnostic => diagnostic.code === 'missing-fx-id-field')
+                        && diagnostics.some(diagnostic => diagnostic.code === 'missing-event-handler')
+                );
+
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainController));
+                const controllerEdit = new vscode.WorkspaceEdit();
+                controllerEdit.replace(
+                    controllerDocument.uri,
+                    new vscode.Range(new vscode.Position(0, 0), controllerDocument.lineAt(controllerDocument.lineCount - 1).range.end),
+                    [
+                        'package com.example;',
+                        '',
+                        'import javafx.fxml.FXML;',
+                        'import javafx.scene.control.Button;',
+                        '',
+                        'public class MainController extends BaseController {',
+                        '    @FXML',
+                        '    private Button submitButton;',
+                        '',
+                        '    @FXML',
+                        '    private void handleSubmit() {',
+                        '    }',
+                        '}',
+                    ].join('\n')
+                );
+                await vscode.workspace.applyEdit(controllerEdit);
+                await controllerDocument.save();
+
+                const updatedDiagnostics = await waitForDiagnostics(fxmlDocument.uri, diagnostics => diagnostics.length === 0);
+                assert.strictEqual(updatedDiagnostics.length, 0);
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -669,6 +893,26 @@ function createCancelledToken(): vscode.CancellationToken {
     return source.token;
 }
 
+async function waitForDiagnostics(
+    uri: vscode.Uri,
+    predicate: (diagnostics: readonly vscode.Diagnostic[]) => boolean,
+    timeoutMs = 5000
+): Promise<readonly vscode.Diagnostic[]> {
+    const deadline = Date.now() + timeoutMs;
+    let diagnostics = vscode.languages.getDiagnostics(uri);
+
+    while (!predicate(diagnostics)) {
+        if (Date.now() >= deadline) {
+            assert.fail(`Timed out waiting for diagnostics. Last diagnostics: ${diagnostics.map(diagnostic => diagnostic.message).join(', ')}`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 25));
+        diagnostics = vscode.languages.getDiagnostics(uri);
+    }
+
+    return diagnostics;
+}
+
 async function withMockFindFiles(
     files: string[],
     run: () => Promise<void>,
@@ -679,12 +923,9 @@ async function withMockFindFiles(
     workspace.findFiles = async (include: vscode.GlobPattern) => {
         const pattern = typeof include === 'string' ? include : include.pattern;
         onFindFiles?.(pattern);
-        if (pattern === '**/*.fxml') {
-            return files.filter(file => file.endsWith('.fxml')).map(file => vscode.Uri.file(file));
-        }
-
-        const suffix = pattern.replace(/^\*\*\//, '');
-        return files.filter(file => toGlobPath(file).endsWith(suffix)).map(file => vscode.Uri.file(file));
+        return files
+            .filter(file => matchesMockGlob(file, pattern))
+            .map(file => vscode.Uri.file(file));
     };
 
     try {
@@ -705,6 +946,18 @@ function normalizeFsPath(filePath: string): string {
 
 function toGlobPath(filePath: string): string {
     return filePath.replace(/\\/g, '/');
+}
+
+function matchesMockGlob(filePath: string, pattern: string): boolean {
+    const escapedPattern = escapeRegex(pattern)
+        .replace(/\\\*\\\*/g, '.*')
+        .replace(/\\\*/g, '[^/]*');
+
+    return new RegExp(`^${escapedPattern}$`).test(toGlobPath(filePath));
+}
+
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {

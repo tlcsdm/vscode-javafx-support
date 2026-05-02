@@ -1,0 +1,8 @@
+{
+    "Controller class '{0}' could not be found.": "找不到控制器类“{0}”。",
+    "Controller field '{0}' exists but is not annotated with @FXML.": "控制器字段“{0}”已存在，但未标注 @FXML。",
+    "Controller field '{0}' for fx:id could not be found.": "找不到与 fx:id“{0}”对应的控制器字段。",
+    "Duplicate fx:id '{0}'.": "fx:id“{0}”重复。",
+    "Another '{0}' is declared here.": "此处还声明了一个“{0}”。",
+    "Event handler '{0}' could not be found in the controller.": "在控制器中找不到事件处理器“{0}”。"
+}

@@ -1,0 +1,8 @@
+{
+    "Controller class '{0}' could not be found.": "コントローラー クラス '{0}' が見つかりません。",
+    "Controller field '{0}' exists but is not annotated with @FXML.": "コントローラー フィールド '{0}' は存在しますが、@FXML が付いていません。",
+    "Controller field '{0}' for fx:id could not be found.": "fx:id '{0}' に対応するコントローラー フィールドが見つかりません。",
+    "Duplicate fx:id '{0}'.": "fx:id '{0}' が重複しています。",
+    "Another '{0}' is declared here.": "別の '{0}' がここで宣言されています。",
+    "Event handler '{0}' could not be found in the controller.": "コントローラー内にイベント ハンドラー '{0}' が見つかりません。"
+}
