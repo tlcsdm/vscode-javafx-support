@@ -359,10 +359,12 @@ export class FxmlOnTypeFormattingEditProvider implements vscode.OnTypeFormatting
             const tag = this.parseTag(text.slice(index, tagEnd + 1));
             if (tag) {
                 if (tag.isClosing) {
-                    for (let stackIndex = stack.length - 1; stackIndex >= 0; stackIndex--) {
-                        if (stack[stackIndex] === tag.name) {
+                    if (stack[stack.length - 1] === tag.name) {
+                        stack.pop();
+                    } else {
+                        const stackIndex = stack.lastIndexOf(tag.name);
+                        if (stackIndex >= 0) {
                             stack.splice(stackIndex, 1);
-                            break;
                         }
                     }
                 } else if (!tag.isSelfClosing) {
@@ -418,6 +420,8 @@ export class FxmlOnTypeFormattingEditProvider implements vscode.OnTypeFormatting
             return undefined;
         }
 
+        // Capture groups: 1 = optional leading slash for closing tags,
+        // 2 = tag name, 3 = optional trailing slash for self-closing tags.
         const match = /^<\s*(\/?)\s*([:A-Za-z_][\w.:-]*)(?:[\s\S]*?)(\/?)\s*>$/.exec(fragment);
         if (!match) {
             return undefined;
