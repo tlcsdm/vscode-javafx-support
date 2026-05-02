@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
 
+type TagInfo = {
+    name: string;
+    isClosing: boolean;
+    isSelfClosing: boolean;
+};
+
 /**
  * FXML Document Formatting Provider.
  * Provides XML formatting specifically designed for FXML files.
@@ -195,5 +201,236 @@ export class FxmlFormattingEditProvider implements vscode.DocumentFormattingEdit
         }
 
         return tokens;
+    }
+}
+
+export class FxmlOnTypeFormattingEditProvider implements vscode.OnTypeFormattingEditProvider {
+
+    provideOnTypeFormattingEdits(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        ch: string,
+        _options: vscode.FormattingOptions,
+        token: vscode.CancellationToken
+    ): vscode.TextEdit[] {
+        if (token.isCancellationRequested) {
+            return [];
+        }
+
+        if (ch === '>') {
+            return this.provideAutoCloseTagEdits(document, position, token);
+        }
+
+        if (ch === '/') {
+            return this.provideClosingTagNameEdits(document, position, token);
+        }
+
+        return [];
+    }
+
+    private provideAutoCloseTagEdits(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): vscode.TextEdit[] {
+        const text = document.getText();
+        const offset = document.offsetAt(position);
+        const tag = this.findTagEndingAt(text, offset - 1, token);
+        if (!tag || tag.isClosing || tag.isSelfClosing) {
+            return [];
+        }
+
+        const after = text.slice(offset);
+        if (after.match(new RegExp(`^\\s*</${this.escapeRegExp(tag.name)}\\s*>`))) {
+            return [];
+        }
+
+        return [vscode.TextEdit.insert(position, `</${tag.name}>`)];
+    }
+
+    private provideClosingTagNameEdits(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): vscode.TextEdit[] {
+        const text = document.getText();
+        const offset = document.offsetAt(position);
+        if (offset < 2 || text.slice(offset - 2, offset) !== '</') {
+            return [];
+        }
+
+        const tagName = this.findInnermostUnclosedTagName(text.slice(0, offset - 2), token);
+        if (!tagName) {
+            return [];
+        }
+
+        const after = text.slice(offset);
+        if (after.startsWith(`${tagName}>`)) {
+            return [];
+        }
+
+        return [vscode.TextEdit.insert(position, `${tagName}>`)];
+    }
+
+    private findTagEndingAt(
+        text: string,
+        endOffset: number,
+        token: vscode.CancellationToken
+    ): TagInfo | undefined {
+        for (let start = endOffset; start >= 0; start--) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
+            if (text[start] !== '<') {
+                continue;
+            }
+
+            const tagEnd = this.findTagEnd(text, start, token);
+            if (tagEnd !== endOffset) {
+                continue;
+            }
+
+            const tag = this.parseTag(text.slice(start, tagEnd + 1));
+            if (tag) {
+                return tag;
+            }
+        }
+
+        return undefined;
+    }
+
+    private findInnermostUnclosedTagName(
+        text: string,
+        token: vscode.CancellationToken
+    ): string | undefined {
+        const stack: string[] = [];
+
+        for (let index = 0; index < text.length; index++) {
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+
+            if (text[index] !== '<') {
+                continue;
+            }
+
+            if (text.startsWith('<!--', index)) {
+                const commentEnd = text.indexOf('-->', index + 4);
+                if (commentEnd < 0) {
+                    return stack[stack.length - 1];
+                }
+                index = commentEnd + 2;
+                continue;
+            }
+
+            if (text.startsWith('<![CDATA[', index)) {
+                const cdataEnd = text.indexOf(']]>', index + 9);
+                if (cdataEnd < 0) {
+                    return stack[stack.length - 1];
+                }
+                index = cdataEnd + 2;
+                continue;
+            }
+
+            if (text.startsWith('<?', index)) {
+                const instructionEnd = text.indexOf('?>', index + 2);
+                if (instructionEnd < 0) {
+                    return stack[stack.length - 1];
+                }
+                index = instructionEnd + 1;
+                continue;
+            }
+
+            if (text.startsWith('<!', index)) {
+                const declarationEnd = this.findTagEnd(text, index, token);
+                if (declarationEnd < 0) {
+                    return stack[stack.length - 1];
+                }
+                index = declarationEnd;
+                continue;
+            }
+
+            const tagEnd = this.findTagEnd(text, index, token);
+            if (tagEnd < 0) {
+                return stack[stack.length - 1];
+            }
+
+            const tag = this.parseTag(text.slice(index, tagEnd + 1));
+            if (tag) {
+                if (tag.isClosing) {
+                    for (let stackIndex = stack.length - 1; stackIndex >= 0; stackIndex--) {
+                        if (stack[stackIndex] === tag.name) {
+                            stack.splice(stackIndex, 1);
+                            break;
+                        }
+                    }
+                } else if (!tag.isSelfClosing) {
+                    stack.push(tag.name);
+                }
+            }
+
+            index = tagEnd;
+        }
+
+        return stack[stack.length - 1];
+    }
+
+    private findTagEnd(
+        text: string,
+        startOffset: number,
+        token: vscode.CancellationToken
+    ): number {
+        let quote: '"' | '\'' | undefined;
+
+        for (let index = startOffset + 1; index < text.length; index++) {
+            if (token.isCancellationRequested) {
+                return -1;
+            }
+
+            const char = text[index];
+            if (quote) {
+                if (char === quote) {
+                    quote = undefined;
+                }
+                continue;
+            }
+
+            if (char === '"' || char === '\'') {
+                quote = char;
+                continue;
+            }
+
+            if (char === '>') {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private parseTag(fragment: string): TagInfo | undefined {
+        if (
+            fragment.startsWith('<!--')
+            || fragment.startsWith('<?')
+            || fragment.startsWith('<!')
+        ) {
+            return undefined;
+        }
+
+        const match = /^<\s*(\/?)\s*([:A-Za-z_][\w.:-]*)(?:[\s\S]*?)(\/?)\s*>$/.exec(fragment);
+        if (!match) {
+            return undefined;
+        }
+
+        return {
+            name: match[2],
+            isClosing: match[1] === '/',
+            isSelfClosing: match[3] === '/',
+        };
+    }
+
+    private escapeRegExp(value: string): string {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 }

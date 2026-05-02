@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { openInSceneBuilder, setSceneBuilderPath } from './sceneBuilder';
 import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
 import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
-import { FxmlFormattingEditProvider } from './fxmlFormatter';
+import { FxmlFormattingEditProvider, FxmlOnTypeFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
 import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
 import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider';
@@ -93,6 +93,14 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentRangeFormattingEditProvider(
             fxmlSelector,
             new FxmlFormattingEditProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerOnTypeFormattingEditProvider(
+            fxmlSelector,
+            new FxmlOnTypeFormattingEditProvider(),
+            '>',
+            '/'
         )
     );
 

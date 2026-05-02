@@ -4,7 +4,7 @@ import { ControllerDefinitionProvider } from '../controllerDefinitionProvider';
 import { FxmlCodeLensProvider } from '../fxmlCodeLensProvider';
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
-import { FxmlFormattingEditProvider } from '../fxmlFormatter';
+import { FxmlFormattingEditProvider, FxmlOnTypeFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 
 suite('Extension Test Suite', () => {
@@ -100,9 +100,79 @@ suite('Extension Test Suite', () => {
         const formatter = new FxmlFormattingEditProvider();
         assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, cancelledToken), []);
         assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, cancelledToken), []);
+        const onTypeFormatter = new FxmlOnTypeFormattingEditProvider();
+        assert.deepStrictEqual(
+            onTypeFormatter.provideOnTypeFormattingEdits(document, position, '>', options, cancelledToken),
+            []
+        );
+        assert.deepStrictEqual(
+            onTypeFormatter.provideOnTypeFormattingEdits(document, position, '/', options, cancelledToken),
+            []
+        );
 
         const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, cancelledToken);
         assert.strictEqual(result, undefined);
+    });
+
+    test('Should insert a matching closing tag when typing > after an opening FXML tag', () => {
+        const provider = new FxmlOnTypeFormattingEditProvider();
+        const document = createMockFxmlDocument('<VBox><Label>');
+        const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
+
+        const edits = provider.provideOnTypeFormattingEdits(
+            document,
+            document.positionAt(document.getText().length),
+            '>',
+            options,
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.strictEqual(applyEdits(document, edits), '<VBox><Label></Label>');
+    });
+
+    test('Should not insert a duplicate closing tag when one already follows the cursor', () => {
+        const provider = new FxmlOnTypeFormattingEditProvider();
+        const document = createMockFxmlDocument('<VBox><Label></Label></VBox>');
+        const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
+
+        const edits = provider.provideOnTypeFormattingEdits(
+            document,
+            new vscode.Position(0, '<VBox><Label>'.length),
+            '>',
+            options,
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.deepStrictEqual(edits, []);
+    });
+
+    test('Should complete the nearest closing tag name when typing / in an end tag', () => {
+        const provider = new FxmlOnTypeFormattingEditProvider();
+        const document = createMockFxmlDocument([
+            '<VBox>',
+            '  <Label>',
+            '  </',
+            '</VBox>',
+        ].join('\n'));
+        const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
+
+        const edits = provider.provideOnTypeFormattingEdits(
+            document,
+            new vscode.Position(2, 4),
+            '/',
+            options,
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.strictEqual(
+            applyEdits(document, edits),
+            [
+                '<VBox>',
+                '  <Label>',
+                '  </Label>',
+                '</VBox>',
+            ].join('\n')
+        );
     });
 
     test('Should provide linked editing ranges for matching FXML tag names', () => {
@@ -278,6 +348,18 @@ function createCancelledToken(): vscode.CancellationToken {
 function getRangeText(document: vscode.TextDocument, range: vscode.Range): string {
     const text = document.getText();
     return text.slice(document.offsetAt(range.start), document.offsetAt(range.end));
+}
+
+function applyEdits(document: vscode.TextDocument, edits: readonly vscode.TextEdit[]): string {
+    const text = document.getText();
+
+    return [...edits]
+        .sort((left, right) => document.offsetAt(right.range.start) - document.offsetAt(left.range.start))
+        .reduce((currentText, edit) => {
+            const start = document.offsetAt(edit.range.start);
+            const end = document.offsetAt(edit.range.end);
+            return currentText.slice(0, start) + edit.newText + currentText.slice(end);
+        }, text);
 }
 
 function createThrowingTextDocument(): vscode.TextDocument {
