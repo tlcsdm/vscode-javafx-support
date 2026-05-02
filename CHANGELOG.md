@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Linked editing for matching FXML start/end tags so renaming `<user>` also updates `</user>`
+
 ### Fixed
 - Added `CancellationToken` checks to navigation, CodeLens, outline, and formatting providers to avoid returning stale results from canceled requests
 
