@@ -170,8 +170,12 @@ export async function findFxmlMemberLocation(
         }
 
         const document = await vscode.workspace.openTextDocument(fxmlUri);
-        const text = document.getText();
-        const controllerInFxml = getControllerClassName(text);
+        const location = findMemberInFxml(document, fxmlUri, memberName, isMethod, token);
+        if (!location) {
+            continue;
+        }
+
+        const controllerInFxml = getControllerClassName(document.getText());
 
         if (!controllerInFxml || (
             controllerInFxml !== controllerClassName
@@ -180,42 +184,35 @@ export async function findFxmlMemberLocation(
             continue;
         }
 
-        let targetLine = -1;
-        let targetChar = 0;
+        return location;
+    }
 
-        if (isMethod) {
-            const pattern = new RegExp(`=\\s*"#${escapeRegex(memberName)}"`);
-            for (let i = 0; i < document.lineCount; i++) {
-                if (token.isCancellationRequested) {
-                    return undefined;
-                }
+    return undefined;
+}
 
-                const match = pattern.exec(document.lineAt(i).text);
-                if (match) {
-                    targetLine = i;
-                    targetChar = match.index + match[0].indexOf('#') + 1;
-                    break;
-                }
-            }
-        } else {
-            const pattern = new RegExp(`fx:id="${escapeRegex(memberName)}"`);
-            for (let i = 0; i < document.lineCount; i++) {
-                if (token.isCancellationRequested) {
-                    return undefined;
-                }
+function findMemberInFxml(
+    document: vscode.TextDocument,
+    uri: vscode.Uri,
+    memberName: string,
+    isMethod: boolean,
+    token: vscode.CancellationToken
+): vscode.Location | undefined {
+    const pattern = isMethod
+        ? new RegExp(`=\\s*"#${escapeRegex(memberName)}"`)
+        : new RegExp(`fx:id="${escapeRegex(memberName)}"`);
 
-                const match = pattern.exec(document.lineAt(i).text);
-                if (match) {
-                    targetLine = i;
-                    targetChar = match.index;
-                    break;
-                }
-            }
+    for (let i = 0; i < document.lineCount; i++) {
+        if (token.isCancellationRequested) {
+            return undefined;
         }
 
-        if (targetLine >= 0) {
-            const position = new vscode.Position(targetLine, targetChar);
-            return new vscode.Location(fxmlUri, new vscode.Range(position, position));
+        const match = pattern.exec(document.lineAt(i).text);
+        if (match) {
+            const targetChar = isMethod
+                ? match.index + match[0].indexOf('#') + 1
+                : match.index;
+            const position = new vscode.Position(i, targetChar);
+            return new vscode.Location(uri, new vscode.Range(position, position));
         }
     }
 

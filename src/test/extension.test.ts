@@ -128,6 +128,7 @@ suite('Extension Test Suite', () => {
 
             const baseController = path.join(javaDir, 'BaseController.java');
             const mainController = path.join(javaDir, 'MainController.java');
+            const unrelatedFxml = path.join(fxmlDir, 'Unrelated.fxml');
             const mainFxml = path.join(fxmlDir, 'Main.fxml');
 
             await fs.writeFile(baseController, [
@@ -158,8 +159,16 @@ suite('Extension Test Suite', () => {
                 '  <Button fx:id="sharedButton" text="Shared" />',
                 '</VBox>',
             ].join('\n'));
+            await fs.writeFile(unrelatedFxml, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="otherButton" text="Other" />',
+                '</VBox>',
+            ].join('\n'));
 
-            await withMockFindFiles([baseController, mainController, mainFxml], async () => {
+            let trackCodeLensJavaLookups = false;
+            let codeLensJavaLookups = 0;
+            await withMockFindFiles([baseController, mainController, unrelatedFxml, mainFxml], async () => {
                 const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
                 const fxmlLine = fxmlDocument.lineAt(2).text;
                 const fxmlToJava = await new FxmlDefinitionProvider().provideDefinition(
@@ -190,6 +199,7 @@ suite('Extension Test Suite', () => {
                 );
                 assert.ok(codeLenses.some(codeLens => codeLens.command?.arguments?.[1] === 'sharedButton'));
 
+                trackCodeLensJavaLookups = true;
                 const codeLensToFxml = await findFxmlMemberLocation(
                     'com.example.BaseController',
                     'sharedButton',
@@ -199,6 +209,11 @@ suite('Extension Test Suite', () => {
                 assert.ok(codeLensToFxml instanceof vscode.Location);
                 assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
+                assert.strictEqual(codeLensJavaLookups, 1);
+            }, pattern => {
+                if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
+                    codeLensJavaLookups++;
+                }
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -456,11 +471,16 @@ function createCancelledToken(): vscode.CancellationToken {
     return source.token;
 }
 
-async function withMockFindFiles(files: string[], run: () => Promise<void>): Promise<void> {
+async function withMockFindFiles(
+    files: string[],
+    run: () => Promise<void>,
+    onFindFiles?: (pattern: string) => void
+): Promise<void> {
     const workspace = vscode.workspace as unknown as { findFiles: typeof vscode.workspace.findFiles };
     const originalFindFiles = workspace.findFiles;
     workspace.findFiles = async (include: vscode.GlobPattern) => {
         const pattern = typeof include === 'string' ? include : include.pattern;
+        onFindFiles?.(pattern);
         if (pattern === '**/*.fxml') {
             return files.filter(file => file.endsWith('.fxml')).map(file => vscode.Uri.file(file));
         }
