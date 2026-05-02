@@ -8,5 +8,7 @@
     "config.title": "JavaFX 支持",
     "config.sceneBuilderPath.description": "Scene Builder 可执行文件的路径。如果为空，扩展将尝试自动查找。",
     "config.outline.showFxId.description": "在 FXML 大纲视图中显示 fx:id 属性。",
-    "config.outline.showText.description": "在 FXML 大纲视图中显示 text 属性。"
+    "config.outline.showText.description": "在 FXML 大纲视图中显示 text 属性。",
+    "config.hover.enabled.description": "启用 FXML 悬停信息，显示 fx:controller、fx:id 绑定和事件处理器引用的控制器注释。",
+    "config.hover.delay.description": "显示 FXML 悬停信息前的延迟时间（毫秒）。"
 }

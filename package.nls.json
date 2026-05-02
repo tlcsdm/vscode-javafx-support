@@ -8,5 +8,7 @@
     "config.title": "JavaFX Support",
     "config.sceneBuilderPath.description": "Path to Scene Builder executable. If empty, the extension will try to find it automatically.",
     "config.outline.showFxId.description": "Show fx:id attribute in the FXML Outline view.",
-    "config.outline.showText.description": "Show text attribute in the FXML Outline view."
+    "config.outline.showText.description": "Show text attribute in the FXML Outline view.",
+    "config.hover.enabled.description": "Enable FXML hover information for controller comments referenced by fx:controller, fx:id bindings, and event handlers.",
+    "config.hover.delay.description": "Delay in milliseconds before showing FXML hover information."
 }

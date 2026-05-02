@@ -5,6 +5,7 @@
 ### Added
 - Add Go to Definition support for FXML `@resource` references such as `@image.png` and `@style.css`
 - Add FXML diagnostics for missing `fx:controller` classes, duplicate `fx:id` values, unresolved controller fields, and missing event handlers
+- Add optional FXML hovers for `fx:controller` classes, controller `fx:id` fields, and event handler comments with configurable delay
 
 ## [1.0.4] - 2026-05-02
 

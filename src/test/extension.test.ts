@@ -12,6 +12,7 @@ import { collectFxmlDiagnostics } from '../fxmlDiagnostics';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
+import { FxmlHoverProvider } from '../fxmlHoverProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
@@ -289,6 +290,116 @@ suite('Extension Test Suite', () => {
             });
         } finally {
             resetFxmlControllerCacheForTests();
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should only provide controller comment hovers when enabled', async () => {
+        const provider = new FxmlHoverProvider();
+        const document = createMockFxmlDocument('<VBox><Label text="Name"/></VBox>');
+
+        await withMockJavafxSupportConfiguration({
+            'hover.enabled': true,
+            'hover.delay': 0,
+        }, async () => {
+            const hover = await provider.provideHover(
+                document,
+                new vscode.Position(0, 2),
+                new vscode.CancellationTokenSource().token
+            );
+
+            assert.strictEqual(hover, undefined);
+        });
+    });
+
+    test('Should provide controller, field, and event handler hovers including inherited members', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-hover-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const baseController = path.join(javaDir, 'BaseController.java');
+            const mainController = path.join(javaDir, 'MainController.java');
+            const mainFxml = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(baseController, [
+                'package com.example;',
+                '',
+                'import javafx.event.ActionEvent;',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class BaseController {',
+                '    /**',
+                '     * Comment for the shared button field.',
+                '     */',
+                '    @FXML',
+                '    protected Button sharedButton;',
+                '',
+                '    /**',
+                '     * Comment for the click handler method.',
+                '     */',
+                '    @FXML',
+                '    protected void handleClick(ActionEvent event) {',
+                '    }',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainController, [
+                'package com.example;',
+                '',
+                '/**',
+                ' * Comment for the main controller class.',
+                ' */',
+                'public class MainController extends BaseController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(mainFxml, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="sharedButton" onAction="#handleClick" text="Save" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([baseController, mainController, mainFxml], async () => {
+                await withMockJavafxSupportConfiguration({
+                    'hover.enabled': true,
+                    'hover.delay': 0,
+                }, async () => {
+                    const provider = new FxmlHoverProvider();
+                    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+                    const controllerLine = document.lineAt(1).text;
+                    const line = document.lineAt(2).text;
+
+                    const controllerHover = await provider.provideHover(
+                        document,
+                        new vscode.Position(1, controllerLine.indexOf('com.example.MainController')),
+                        new vscode.CancellationTokenSource().token
+                    );
+                    assert.ok(controllerHover);
+                    assert.match(getHoverText(controllerHover), /Comment for the main controller class\./);
+
+                    const fieldHover = await provider.provideHover(
+                        document,
+                        new vscode.Position(2, line.indexOf('sharedButton')),
+                        new vscode.CancellationTokenSource().token
+                    );
+                    assert.ok(fieldHover);
+                    assert.match(getHoverText(fieldHover), /Comment for the shared button field\./);
+                    assert.match(getHoverText(fieldHover), /Declared in `BaseController`\./);
+
+                    const methodHover = await provider.provideHover(
+                        document,
+                        new vscode.Position(2, line.indexOf('#handleClick')),
+                        new vscode.CancellationTokenSource().token
+                    );
+                    assert.ok(methodHover);
+                    assert.match(getHoverText(methodHover), /Comment for the click handler method\./);
+                    assert.match(getHoverText(methodHover), /Declared in `BaseController`\./);
+                });
+            });
+        } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
     });
@@ -630,6 +741,9 @@ suite('Extension Test Suite', () => {
 
         const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(fxmlDefinition, undefined);
+
+        const hover = await new FxmlHoverProvider().provideHover(document, position, cancelledToken);
+        assert.strictEqual(hover, undefined);
 
         const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
         assert.deepStrictEqual(symbols, []);
@@ -1055,6 +1169,39 @@ async function withMockFindFiles(
     }
 }
 
+async function withMockJavafxSupportConfiguration(
+    values: Record<string, unknown>,
+    run: () => Promise<void>
+): Promise<void> {
+    const workspace = vscode.workspace as unknown as { getConfiguration: typeof vscode.workspace.getConfiguration };
+    const originalGetConfiguration = workspace.getConfiguration;
+    const mockedGetConfiguration: typeof vscode.workspace.getConfiguration = (section?: string, scope?: vscode.ConfigurationScope | null) => {
+        const configuration = originalGetConfiguration(section, scope);
+        if (section !== 'tlcsdm.javafxSupport') {
+            return configuration;
+        }
+
+        return {
+            ...configuration,
+            get: <T>(key: string, defaultValue?: T) => {
+                if (Object.prototype.hasOwnProperty.call(values, key)) {
+                    return values[key] as T;
+                }
+
+                const configuredValue = configuration.get<T>(key);
+                return configuredValue === undefined ? defaultValue as T : configuredValue;
+            },
+        } as vscode.WorkspaceConfiguration;
+    };
+    workspace.getConfiguration = mockedGetConfiguration;
+
+    try {
+        await run();
+    } finally {
+        workspace.getConfiguration = originalGetConfiguration;
+    }
+}
+
 function assertFsPathEqual(actual: string, expected: string): void {
     assert.strictEqual(normalizeFsPath(actual), normalizeFsPath(expected));
 }
@@ -1085,10 +1232,21 @@ function getRangeText(document: vscode.TextDocument, range: vscode.Range): strin
     return text.slice(document.offsetAt(range.start), document.offsetAt(range.end));
 }
 
+function getHoverText(hover: vscode.Hover): string {
+    return hover.contents
+        .map(content => decodeHoverMarkdown(typeof content === 'string' ? content : content.value))
+        .join('\n');
+}
+
 function createThrowingTextDocument(): vscode.TextDocument {
     return new Proxy({}, {
         get() {
             throw new Error('document should not be accessed after cancellation');
         },
     }) as vscode.TextDocument;
+}
+
+function decodeHoverMarkdown(value: string): string {
+    // MarkdownString.appendText encodes spaces as &nbsp; in the serialized value.
+    return value.replace(/&nbsp;/g, ' ');
 }
