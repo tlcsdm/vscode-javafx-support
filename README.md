@@ -53,6 +53,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 ### Linked Editing
 
 - Rename an opening tag such as `<user>` and VS Code will keep the matching closing tag `</user>` in sync while you type
+- Linked editing is enabled by default for FXML files
 - Works for regular FXML/XML element pairs such as `<account>...</account>`
 - Self-closing tags such as `<Label/>` are intentionally excluded because they do not have a matching closing tag
 

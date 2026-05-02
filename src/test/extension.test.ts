@@ -28,6 +28,12 @@ suite('Extension Test Suite', () => {
         });
     });
 
+    test('Should enable linked editing by default for FXML files', () => {
+        const editorConfig = vscode.workspace.getConfiguration('editor', { languageId: 'fxml' });
+
+        assert.strictEqual(editorConfig.get('linkedEditing'), true);
+    });
+
     test('Should provide semantic SymbolKind values for FXML outline', () => {
         const provider = new FxmlDocumentSymbolProvider();
         const document = createMockFxmlDocument([
@@ -120,6 +126,27 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'user');
         assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'user');
         assert.strictEqual(ranges!.wordPattern?.source, '[:A-Za-z_](?:[\\w.:]|-)*');
+    });
+
+    test('Should provide linked editing ranges for FXML property tags such as bottom', () => {
+        const provider = new FxmlLinkedEditingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<BorderPane>',
+            '  <bottom>',
+            '  </bottom>',
+            '</BorderPane>',
+        ].join('\n'));
+
+        const ranges = provider.provideLinkedEditingRanges(
+            document,
+            new vscode.Position(1, 4),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges);
+        assert.strictEqual(ranges!.ranges.length, 2);
+        assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'bottom');
+        assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'bottom');
     });
 
     test('Should match the nearest nested closing tag for linked editing', () => {

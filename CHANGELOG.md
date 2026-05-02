@@ -6,6 +6,7 @@
 - Linked editing for matching FXML start/end tags so renaming `<user>` also updates `</user>`
 
 ### Fixed
+- Enabled linked editing by default for FXML files so matching tag renames take effect immediately
 - Added `CancellationToken` checks to navigation, CodeLens, outline, and formatting providers to avoid returning stale results from canceled requests
 
 ## [1.0.3] - 2026-04-02
