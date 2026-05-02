@@ -41,6 +41,10 @@ const FX_PROPERTY_TOKEN_PATTERN = '-fx-[a-z0-9]+(?:-[a-z0-9]+)*';
 const FX_PROPERTY_PREFIX_PATTERN = /(^|\s)(-fx|-fx-(?:[a-z0-9]+(?:-[a-z0-9]+)*)?)$/i;
 const FX_PROPERTY_DECLARATION_PATTERN = new RegExp(`(${FX_PROPERTY_TOKEN_PATTERN})\\s*:(\\s*[^;}]*)$`, 'i');
 const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
+// Captures a style attribute value up to the cursor, accepting escaped characters inside the quoted value.
+const STYLE_ATTRIBUTE_VALUE_PREFIX_PATTERN = /\bstyle\s*=\s*(["'])((?:\\.|(?!\1).)*)$/i;
+const TRAILING_SEMICOLON_PATTERN = /^\s*;/;
+const CSS_VALUE_SEPARATOR = ' ';
 
 const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
     ...definition,
@@ -90,7 +94,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         return valueOptions.map(option => {
             const item = new vscode.CompletionItem(option.label, vscode.CompletionItemKind.EnumMember);
             item.detail = `JavaFX CSS value for ${context.definition.name}`;
-            item.insertText = ` ${option.value}${context.appendSemicolon ? ';' : ''}`;
+            item.insertText = createValueInsertText(option.value, context.appendSemicolon);
             item.filterText = `${option.label} ${option.value}`;
             item.range = context.range;
             item.documentation = createValueDocumentation(context.definition, option.value);
@@ -150,7 +154,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
                 position.line,
                 position.character
             ),
-            appendSemicolon: !/^\s*;/.test(context.suffix),
+            appendSemicolon: shouldAppendSemicolon(context.suffix),
         };
     }
 }
@@ -258,8 +262,7 @@ function getCssDocumentContext(document: vscode.TextDocument, position: vscode.P
 
 function getFxmlStyleAttributeContext(lineText: string, character: number): CssDocumentContext | undefined {
     const linePrefix = lineText.slice(0, character);
-    // Match a style attribute value up to the cursor, including escaped characters but not the opening quote.
-    const attributeMatch = /\bstyle\s*=\s*(["'])((?:\\.|(?!\1).)*)$/i.exec(linePrefix);
+    const attributeMatch = STYLE_ATTRIBUTE_VALUE_PREFIX_PATTERN.exec(linePrefix);
     if (!attributeMatch) {
         return undefined;
     }
@@ -272,6 +275,14 @@ function getFxmlStyleAttributeContext(lineText: string, character: number): CssD
         prefix: attributeMatch[2],
         suffix: closingQuoteIndex >= 0 ? lineSuffix.slice(0, closingQuoteIndex) : lineSuffix,
     };
+}
+
+function createValueInsertText(value: string, appendSemicolon: boolean): string {
+    return `${CSS_VALUE_SEPARATOR}${value}${appendSemicolon ? ';' : ''}`;
+}
+
+function shouldAppendSemicolon(suffix: string): boolean {
+    return !TRAILING_SEMICOLON_PATTERN.test(suffix);
 }
 
 function extractValueOptions(definition: JavafxCssPropertyDefinition): readonly JavafxCssValueOption[] {

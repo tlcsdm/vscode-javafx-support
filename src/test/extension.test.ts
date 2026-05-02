@@ -829,6 +829,20 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(spacedCenter?.insertText, ' center;');
         assert.ok(spacedCenter?.range instanceof vscode.Range);
         assert.strictEqual(getRangeText(spacedDocument, spacedCenter!.range as vscode.Range), '  c');
+
+        const semicolonDocument = createMockCssDocument('.root { -fx-alignment: c; }');
+        const semicolonCompletions = await provider.provideCompletionItems(
+            semicolonDocument,
+            new vscode.Position(0, semicolonDocument.lineAt(0).text.indexOf(' c;') + ' c'.length),
+            new vscode.CancellationTokenSource().token
+        );
+        assert.ok(Array.isArray(semicolonCompletions));
+
+        const semicolonCenter = (semicolonCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        assert.ok(semicolonCenter);
+        assert.strictEqual(semicolonCenter?.insertText, ' center');
+        assert.ok(semicolonCenter?.range instanceof vscode.Range);
+        assert.strictEqual(getRangeText(semicolonDocument, semicolonCenter!.range as vscode.Range), ' c');
     });
 
     test('Should provide JavaFX CSS completions inside FXML style attributes', async () => {
