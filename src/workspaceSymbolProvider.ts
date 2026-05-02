@@ -4,6 +4,8 @@ import { getFullyQualifiedClassName } from './javaControllerResolver';
 const FXML_GLOB = '**/*.fxml';
 const JAVA_GLOB = '**/*.java';
 const EXCLUDE_GLOB = '**/node_modules/**';
+const MAX_ANNOTATION_LOOKAHEAD = 3;
+const FXML_FX_ID_PATTERN = /<([A-Za-z_][\w:.-]*)\b[^>]*\bfx:id\s*=\s*(["'])([^"']+)\2/gs;
 
 export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<vscode.SymbolInformation> {
     async provideWorkspaceSymbols(
@@ -46,10 +48,10 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
 
             const document = await vscode.workspace.openTextDocument(uri);
             const text = document.getText();
-            const pattern = /<([A-Za-z_][\w:.-]*)\b[^>]*\bfx:id\s*=\s*(["'])([^"']+)\2/gs;
+            FXML_FX_ID_PATTERN.lastIndex = 0;
 
             let match: RegExpExecArray | null;
-            while ((match = pattern.exec(text)) !== null) {
+            while ((match = FXML_FX_ID_PATTERN.exec(text)) !== null) {
                 if (token.isCancellationRequested) {
                     return [];
                 }
@@ -108,7 +110,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
                     continue;
                 }
 
-                for (let j = i + 1; j < document.lineCount && j <= i + 3; j++) {
+                for (let j = i + 1; j < document.lineCount && j <= i + MAX_ANNOTATION_LOOKAHEAD; j++) {
                     if (token.isCancellationRequested) {
                         return [];
                     }

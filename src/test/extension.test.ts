@@ -365,7 +365,7 @@ suite('Extension Test Suite', () => {
         }
     });
 
-    test('Should provide workspace symbols for matching fx:id and @FXML fields', async () => {
+    test('Should provide case-insensitive workspace symbols for matching fx:id and @FXML fields', async () => {
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
         await extension?.activate();
 
