@@ -5,9 +5,11 @@ const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
 const MAX_FXML_ANNOTATION_DISTANCE = 2;
 // Matches FXML attribute assignments whose value starts with a single '%' resource-bundle reference.
+// JavaFX uses '%%' to escape a literal percent sign, so those are intentionally excluded.
 const RESOURCE_BUNDLE_ATTRIBUTE_PATTERN = /\b[\w:.-]+\s*=\s*(["'])%(?!%)([^"']+)\1/g;
-// Matches Java String constant declarations with optional access modifiers and any static/final ordering.
-const JAVA_STRING_CONSTANT_PATTERN = /\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"([^"]+)"/g;
+// Matches Java String constant declarations with optional access modifiers, any static/final ordering,
+// and escaped characters inside the string literal.
+const JAVA_STRING_CONSTANT_PATTERN = /\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"((?:[^"\\]|\\.)*)"/g;
 // Matches ResourceBundle.getBundle(...) calls and captures either a literal base name or a String constant name.
 const RESOURCE_BUNDLE_GET_BUNDLE_PATTERN = /\bResourceBundle\s*\.\s*getBundle\s*\(\s*("([^"]+)"|(\w+))/g;
 
@@ -429,7 +431,7 @@ async function collectResourceBundleBaseNames(
 function extractResourceBundleBaseNames(text: string): string[] {
     const stringConstants = new Map<string, string>();
     for (const match of text.matchAll(JAVA_STRING_CONSTANT_PATTERN)) {
-        stringConstants.set(match[1], match[2]);
+        stringConstants.set(match[1], match[2].replace(/\\(["\\])/g, '$1'));
     }
 
     const bundleNames = new Set<string>();
@@ -592,7 +594,7 @@ function getMethodDeclarationMatch(line: string, methodName: string): RegExpExec
     }
 
     const lastPrefixChar = prefix.trimEnd().at(-1);
-    return lastPrefixChar && (/\w/.test(lastPrefixChar) || lastPrefixChar === '>' || lastPrefixChar === ']')
+    return isValidMethodPrefixTerminator(lastPrefixChar)
         ? methodMatch
         : undefined;
 }
@@ -614,6 +616,10 @@ function isValidMemberDeclarationPrefix(prefix: string): boolean {
     }
 
     return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
+}
+
+function isValidMethodPrefixTerminator(character: string | undefined): boolean {
+    return !!character && (/\w/.test(character) || character === '>' || character === ']');
 }
 
 function escapeRegex(str: string): string {

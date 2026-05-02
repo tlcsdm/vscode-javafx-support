@@ -12,6 +12,9 @@ import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 
+const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
+const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
+
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
 
@@ -320,7 +323,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Should report missing controller members and missing resource bundle keys', async () => {
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-controller-diagnostics-'));
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
             const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
@@ -454,7 +457,7 @@ suite('Extension Test Suite', () => {
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
         await extension?.activate();
 
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-controller-refresh-'));
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_REFRESH_TEMP_PREFIX));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
             const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
