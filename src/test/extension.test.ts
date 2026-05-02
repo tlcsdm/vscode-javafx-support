@@ -134,7 +134,7 @@ suite('Extension Test Suite', () => {
             await fs.writeFile(image, '');
             await fs.writeFile(
                 mainFxml,
-                '<VBox stylesheets="@styles/main.css"><ImageView image="@images/logo.png" accessibleText="logo.png"/></VBox>'
+                '<VBox stylesheets="@styles/main.css" tooltip="@styles/missing.css"><ImageView image="@images/logo.png" accessibleText="logo.png"/></VBox>'
             );
 
             const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
@@ -158,6 +158,15 @@ suite('Extension Test Suite', () => {
             assert.ok(imageLocation instanceof vscode.Location);
             assertFsPathEqual(imageLocation.uri.fsPath, image);
             assert.deepStrictEqual(imageLocation.range.start, new vscode.Position(0, 0));
+
+            assert.strictEqual(
+                await provider.provideDefinition(
+                    document,
+                    new vscode.Position(0, line.indexOf('styles/missing.css')),
+                    new vscode.CancellationTokenSource().token
+                ),
+                undefined
+            );
 
             assert.strictEqual(
                 await provider.provideDefinition(
