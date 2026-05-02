@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
  * - fx:controller="com.example.MyController" → opens the controller class
  * - fx:id="myButton" → jumps to @FXML annotated field in the controller
  * - onAction="#handleClick" → jumps to @FXML annotated method in the controller
+ * - fx:include source="Child.fxml" → opens the included FXML file
  */
 export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
@@ -18,6 +19,11 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         const line = document.lineAt(position).text;
+
+        const includeSourceMatch = this.getFxIncludeSourceAtPosition(line, position.character);
+        if (includeSourceMatch) {
+            return this.findIncludedFxml(document, includeSourceMatch, token);
+        }
 
         // Check if clicking on fx:controller
         const controllerMatch = this.getAttributeValueAtPosition(line, position.character, /fx:controller\s*=\s*"([^"]+)"/g);
@@ -59,6 +65,43 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             }
         }
         return undefined;
+    }
+
+    private getFxIncludeSourceAtPosition(line: string, charPos: number): string | undefined {
+        const pattern = /<fx:include\b[^>]*\bsource\s*=\s*(["'])(.*?)\1/g;
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+            const sourceAttributeStart = match[0].search(/\bsource\s*=/);
+            const start = match.index + sourceAttributeStart;
+            const end = match.index + match[0].length;
+            if (sourceAttributeStart >= 0 && charPos >= start && charPos <= end) {
+                return match[2];
+            }
+        }
+        return undefined;
+    }
+
+    private async findIncludedFxml(
+        document: vscode.TextDocument,
+        source: string,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location | undefined> {
+        if (token.isCancellationRequested || document.uri.scheme !== 'file') {
+            return undefined;
+        }
+
+        const includeUri = vscode.Uri.joinPath(document.uri, '..', source);
+        try {
+            await vscode.workspace.fs.stat(includeUri);
+        } catch {
+            return undefined;
+        }
+
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        return new vscode.Location(includeUri, new vscode.Position(0, 0));
     }
 
     /**
