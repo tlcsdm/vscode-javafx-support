@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
 interface HoverTarget {
-    kind: 'field' | 'method';
+    kind: 'controller' | 'field' | 'method';
     name: string;
     range: vscode.Range;
 }
@@ -40,13 +40,26 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         }
 
         const line = document.lineAt(position).text;
-        const target = this.getEventHandlerTarget(document, position, line)
+        const target = this.getControllerTarget(document, position, line)
+            ?? this.getEventHandlerTarget(document, position, line)
             ?? this.getFxIdTarget(document, position, line);
         if (!target) {
             return undefined;
         }
 
+        if (target.kind === 'controller') {
+            return this.createControllerClassHover(target, token);
+        }
+
         return this.createControllerMemberHover(document, target, token);
+    }
+
+    private getControllerTarget(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        line: string
+    ): HoverTarget | undefined {
+        return this.getAttributeTarget(document, position, line, /\bfx:controller\s*=\s*(["'])([\w.$]+)\1/g, 'controller');
     }
 
     private getFxIdTarget(
@@ -78,7 +91,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         line: string,
         pattern: RegExp,
-        kind: 'field' | 'method'
+        kind: 'controller' | 'field' | 'method'
     ): HoverTarget | undefined {
         let match: RegExpExecArray | null;
         while ((match = pattern.exec(line)) !== null) {
@@ -98,6 +111,25 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         }
 
         return undefined;
+    }
+
+    private async createControllerClassHover(
+        target: HoverTarget,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Hover | undefined> {
+        const classInfo = await findJavaClass(target.name, token);
+        if (!classInfo || token.isCancellationRequested) {
+            return undefined;
+        }
+
+        const documentation = this.findClassDocumentation(classInfo.document, this.getSimpleClassName(target.name));
+        if (!documentation) {
+            return undefined;
+        }
+
+        const markdown = new vscode.MarkdownString();
+        markdown.appendText(documentation);
+        return new vscode.Hover(markdown, target.range);
     }
 
     private async createControllerMemberHover(
@@ -220,6 +252,19 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
         }
 
         return bestMatch;
+    }
+
+    private findClassDocumentation(document: vscode.TextDocument, className: string): string | undefined {
+        const classPattern = new RegExp(`\\b(?:class|interface|enum|record)\\s+${this.escapeRegex(className)}\\b`);
+
+        for (let i = 0; i < document.lineCount; i++) {
+            const lineText = document.lineAt(i).text;
+            if (classPattern.test(lineText)) {
+                return this.findDocumentationAbove(document, i);
+            }
+        }
+
+        return undefined;
     }
 
     private findDocumentationAbove(document: vscode.TextDocument, declarationLine: number): string | undefined {

@@ -312,7 +312,7 @@ suite('Extension Test Suite', () => {
         });
     });
 
-    test('Should provide controller field and event handler hovers including inherited members', async () => {
+    test('Should provide controller, field, and event handler hovers including inherited members', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-hover-'));
         try {
             const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
@@ -349,6 +349,9 @@ suite('Extension Test Suite', () => {
             await fs.writeFile(mainController, [
                 'package com.example;',
                 '',
+                '/**',
+                ' * Comment for the main controller class.',
+                ' */',
                 'public class MainController extends BaseController {',
                 '}',
             ].join('\n'));
@@ -366,7 +369,16 @@ suite('Extension Test Suite', () => {
                 }, async () => {
                     const provider = new FxmlHoverProvider();
                     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+                    const controllerLine = document.lineAt(1).text;
                     const line = document.lineAt(2).text;
+
+                    const controllerHover = await provider.provideHover(
+                        document,
+                        new vscode.Position(1, controllerLine.indexOf('com.example.MainController')),
+                        new vscode.CancellationTokenSource().token
+                    );
+                    assert.ok(controllerHover);
+                    assert.match(getHoverText(controllerHover), /Comment for the main controller class\./);
 
                     const fieldHover = await provider.provideHover(
                         document,

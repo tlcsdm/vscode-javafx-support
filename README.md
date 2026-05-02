@@ -71,6 +71,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 
 ### FXML Hover
 
+- Hovering `fx:controller="com.example.MyController"` shows the matching controller class comment
 - Hovering `fx:id="myButton"` shows the matching controller field comment, including inherited members
 - Hovering `onAction="#handleClick"` shows the matching controller method comment, including inherited members
 - Hover is disabled by default and can be enabled with a configurable delay
@@ -87,7 +88,7 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `tlcsdm.javafxSupport.sceneBuilderPath` | Path to Scene Builder executable | `""` (auto-detect) |
-| `tlcsdm.javafxSupport.hover.enabled` | Enable FXML hover information for controller comments referenced by `fx:id` and event handlers | `false` |
+| `tlcsdm.javafxSupport.hover.enabled` | Enable FXML hover information for controller comments referenced by `fx:controller`, `fx:id`, and event handlers | `false` |
 | `tlcsdm.javafxSupport.outline.showFxId` | Show `fx:id` details in the FXML Outline view | `true` |
 | `tlcsdm.javafxSupport.outline.showText` | Show `text` details in the FXML Outline view | `true` |
 | `tlcsdm.javafxSupport.hover.delay` | Delay in milliseconds before showing FXML hover information | `300` |
