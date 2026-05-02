@@ -14,6 +14,7 @@ import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvide
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
+import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from '../javafxCssProvider';
 import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
@@ -749,6 +750,74 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should provide JavaFX CSS property completions for -fx- prefixes', async () => {
+        const provider = new JavafxCssCompletionProvider();
+        const document = createMockCssDocument([
+            '.root {',
+            '  -fx-',
+            '}',
+        ].join('\n'));
+
+        const completions = await provider.provideCompletionItems(
+            document,
+            new vscode.Position(1, document.lineAt(1).text.length),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(Array.isArray(completions));
+        assert.ok((completions as vscode.CompletionItem[]).length >= 190);
+        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-alignment'));
+        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
+        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-text-fill'));
+    });
+
+    test('Should provide JavaFX CSS value completions for enum-like properties', async () => {
+        const provider = new JavafxCssCompletionProvider();
+        const document = createMockCssDocument([
+            '.root {',
+            '  -fx-alignment: c',
+            '}',
+        ].join('\n'));
+
+        const completions = await provider.provideCompletionItems(
+            document,
+            new vscode.Position(1, document.lineAt(1).text.length),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(Array.isArray(completions));
+
+        const items = completions as vscode.CompletionItem[];
+        const center = items.find(item => item.label === 'CENTER');
+        const topLeft = items.find(item => item.label === 'TOP_LEFT');
+
+        assert.ok(center);
+        assert.strictEqual(center?.insertText, 'center');
+        assert.ok(topLeft);
+        assert.strictEqual(topLeft?.insertText, 'top-left');
+    });
+
+    test('Should provide JavaFX CSS hovers for -fx- properties', () => {
+        const provider = new JavafxCssHoverProvider();
+        const document = createMockCssDocument([
+            '.root {',
+            '  -fx-alignment: center;',
+            '}',
+        ].join('\n'));
+        const line = document.lineAt(1).text;
+
+        const hover = provider.provideHover(
+            document,
+            new vscode.Position(1, line.indexOf('-fx-alignment') + 2),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(hover instanceof vscode.Hover);
+        assert.match(getHoverText(hover), /-fx-alignment: \[/);
+        assert.match(getHoverText(hover), /\*\*Default:\*\* `top-left`/);
+        assert.match(getHoverText(hover), /\*\*Applies to:\*\* `FlowPane`/);
+    });
+
     test('Should reuse and refresh the cached FXML controller index', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), FXML_CONTROLLER_CACHE_TEMP_PREFIX));
         try {
@@ -1098,6 +1167,13 @@ suite('Extension Test Suite', () => {
         const hover = await new FxmlHoverProvider().provideHover(document, position, cancelledToken);
         assert.strictEqual(hover, undefined);
 
+        const cssDocument = createMockCssDocument('.root { -fx-alignment: center; }');
+        const cssCompletions = await new JavafxCssCompletionProvider().provideCompletionItems(cssDocument, position, cancelledToken);
+        assert.strictEqual(cssCompletions, undefined);
+
+        const cssHover = new JavafxCssHoverProvider().provideHover(cssDocument, position, cancelledToken);
+        assert.strictEqual(cssHover, undefined);
+
         const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
         assert.deepStrictEqual(symbols, []);
 
@@ -1412,9 +1488,9 @@ suite('Extension Test Suite', () => {
     });
 });
 
-function createMockFxmlDocument(text: string): vscode.TextDocument {
+function createMockDocument(text: string, languageId: string, fileName: string): vscode.TextDocument {
     const lines = text.split(/\r?\n/);
-    const contentUri = vscode.Uri.parse('untitled:test.fxml');
+    const contentUri = vscode.Uri.parse(`untitled:${fileName}`);
     const lineStartOffsets: number[] = [];
     let runningOffset = 0;
     for (const line of lines) {
@@ -1440,7 +1516,7 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
 
     return {
         uri: contentUri,
-        languageId: 'fxml',
+        languageId,
         version: 1,
         lineCount: lines.length,
         getText: () => text,
@@ -1460,6 +1536,14 @@ function createMockFxmlDocument(text: string): vscode.TextDocument {
             return lineOffset + Math.max(0, Math.min(position.character, lines[safeLine].length));
         },
     } as unknown as vscode.TextDocument;
+}
+
+function createMockFxmlDocument(text: string): vscode.TextDocument {
+    return createMockDocument(text, 'fxml', 'test.fxml');
+}
+
+function createMockCssDocument(text: string): vscode.TextDocument {
+    return createMockDocument(text, 'css', 'test.css');
 }
 
 function createCancelledToken(): vscode.CancellationToken {

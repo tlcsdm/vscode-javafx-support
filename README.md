@@ -1,6 +1,6 @@
 # JavaFX Support
 
-A VS Code extension for JavaFX development with FXML support.
+A VS Code extension for JavaFX development with FXML and JavaFX CSS support.
 
 ## Features
 
@@ -15,6 +15,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 🔎 **Find All References** - Press `Shift+F12` on an FXML `fx:id` to find `$fxId` usages in the current FXML file together with the matching controller field declaration
 - 🔍 **Workspace Symbols** - Press `Ctrl+T` / `Cmd+T` to search `fx:id` values and matching `@FXML` field names across the workspace
 - 💡 **FXML Hover** - Optionally show controller field and event handler comments on hover
+- 🎨 **JavaFX CSS IntelliSense** - Get `-fx-` property completions, enum-like value suggestions, and hover details inside `.css` files
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
 ## Installation
@@ -90,6 +91,12 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - `fx:id` values without matching controller fields are reported as warnings
 - Missing controller event handlers such as `#handleClick` are reported as errors
 - Duplicate `fx:id` values in the same FXML file are reported as errors
+
+### JavaFX CSS IntelliSense
+
+- Type `-fx-` in a `.css` file to see JavaFX-specific CSS properties such as `-fx-background-color`, `-fx-font-size`, and `-fx-text-fill`
+- After properties such as `-fx-alignment:`, completion suggests common enum-like values such as `CENTER` and `TOP_LEFT`
+- Hover a JavaFX CSS property to see its syntax, default value, and where it applies
 
 ## Configuration
 

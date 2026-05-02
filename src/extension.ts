@@ -12,6 +12,7 @@ import { registerFxmlControllerCache } from './fxmlControllerCache';
 import { FxmlHoverProvider } from './fxmlHoverProvider';
 import { FxmlReferenceProvider } from './fxmlReferenceProvider';
 import { WorkspaceSymbolProvider } from './workspaceSymbolProvider';
+import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './javafxCssProvider';
 
 /**
  * Extension activation
@@ -38,6 +39,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     const fxmlSelector: vscode.DocumentSelector = { language: 'fxml', scheme: 'file' };
+    const cssSelector: vscode.DocumentSelector = { language: 'css', scheme: 'file' };
     const fxmlFoldingSelector: vscode.DocumentSelector = [
         fxmlSelector,
         { language: 'fxml', scheme: 'untitled' },
@@ -103,6 +105,18 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerReferenceProvider(
             fxmlSelector,
             new FxmlReferenceProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            cssSelector,
+            new JavafxCssCompletionProvider(),
+            '-',
+            ':'
+        ),
+        vscode.languages.registerHoverProvider(
+            cssSelector,
+            new JavafxCssHoverProvider()
         )
     );
     context.subscriptions.push(
