@@ -3,6 +3,7 @@ import { findJavaClass, getSuperclassName, type JavaClassInfo } from './javaCont
 
 const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
+const MAX_FXML_ANNOTATION_DISTANCE = 2;
 
 interface AttributeOccurrence {
     value: string;
@@ -421,7 +422,7 @@ async function collectResourceBundleBaseNames(
 
 function extractResourceBundleBaseNames(text: string): string[] {
     const stringConstants = new Map<string, string>();
-    for (const match of text.matchAll(/\b(?:public|protected|private)?\s*(?:static\s+final\s+)?String\s+(\w+)\s*=\s*"([^"]+)"/g)) {
+    for (const match of text.matchAll(/\b(?:public|protected|private)?\s*(?:(?:static|final)\s+)*String\s+(\w+)\s*=\s*"([^"]+)"/g)) {
         stringConstants.set(match[1], match[2]);
     }
 
@@ -535,14 +536,14 @@ function findFieldStateInJavaFile(
 
         const fieldMatch = getFieldDeclarationMatch(lineText, fieldName);
         if (fieldMatch) {
-            if (fxmlAnnotationLine >= 0 && index - fxmlAnnotationLine <= 2) {
+            if (fxmlAnnotationLine >= 0 && index - fxmlAnnotationLine <= MAX_FXML_ANNOTATION_DISTANCE) {
                 return 'annotated';
             }
 
             sawUnannotatedField = true;
         }
 
-        if (fxmlAnnotationLine >= 0 && index - fxmlAnnotationLine > 2) {
+        if (fxmlAnnotationLine >= 0 && index - fxmlAnnotationLine > MAX_FXML_ANNOTATION_DISTANCE) {
             fxmlAnnotationLine = -1;
         }
     }
