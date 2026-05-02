@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-const LINKED_TAG_NAME_PATTERN = /[:A-Za-z_][\w.:-]*/;
+const LINKED_TAG_NAME_PATTERN = /[:A-Za-z_](?:[\w.:]|-)*/;
 
 interface ParsedTag {
     readonly name: string;
@@ -189,6 +189,6 @@ export class FxmlLinkedEditingRangeProvider implements vscode.LinkedEditingRange
     }
 
     private isTagNameChar(char: string): boolean {
-        return /[\w.:-]/.test(char);
+        return /[\w.:]/.test(char) || char === '-';
     }
 }

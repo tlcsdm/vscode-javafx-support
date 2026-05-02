@@ -73,29 +73,29 @@ suite('Extension Test Suite', () => {
     });
 
     test('Providers should return early when cancellation is already requested', async () => {
-        const token = createCancelledToken();
+        const cancelledToken = createCancelledToken();
         const document = createThrowingTextDocument();
         const position = new vscode.Position(0, 0);
         const range = new vscode.Range(position, position);
         const options: vscode.FormattingOptions = { insertSpaces: true, tabSize: 2 };
 
-        const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(document, token);
+        const codeLenses = await new FxmlCodeLensProvider().provideCodeLenses(document, cancelledToken);
         assert.deepStrictEqual(codeLenses, []);
 
-        const controllerDefinition = await new ControllerDefinitionProvider().provideDefinition(document, position, token);
+        const controllerDefinition = await new ControllerDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(controllerDefinition, undefined);
 
-        const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, token);
+        const fxmlDefinition = await new FxmlDefinitionProvider().provideDefinition(document, position, cancelledToken);
         assert.strictEqual(fxmlDefinition, undefined);
 
-        const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, token);
+        const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
         assert.deepStrictEqual(symbols, []);
 
         const formatter = new FxmlFormattingEditProvider();
-        assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, token), []);
-        assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, token), []);
+        assert.deepStrictEqual(formatter.provideDocumentFormattingEdits(document, options, cancelledToken), []);
+        assert.deepStrictEqual(formatter.provideDocumentRangeFormattingEdits(document, range, options, cancelledToken), []);
 
-        const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, token);
+        const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, cancelledToken);
         assert.strictEqual(result, undefined);
     });
 
@@ -119,7 +119,7 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(ranges!.ranges.length, 2);
         assert.strictEqual(getRangeText(document, ranges!.ranges[0]), 'user');
         assert.strictEqual(getRangeText(document, ranges!.ranges[1]), 'user');
-        assert.strictEqual(ranges!.wordPattern?.source, '[:A-Za-z_][\\w.:-]*');
+        assert.strictEqual(ranges!.wordPattern?.source, '[:A-Za-z_](?:[\\w.:]|-)*');
     });
 
     test('Should match the nearest nested closing tag for linked editing', () => {
