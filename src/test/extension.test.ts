@@ -138,11 +138,12 @@ suite('Extension Test Suite', () => {
             );
 
             const document = await vscode.workspace.openTextDocument(vscode.Uri.file(mainFxml));
+            const line = document.lineAt(0).text;
             const provider = new FxmlDefinitionProvider();
 
             const stylesheetLocation = await provider.provideDefinition(
                 document,
-                new vscode.Position(0, document.lineAt(0).text.indexOf('styles/main.css')),
+                new vscode.Position(0, line.indexOf('styles/main.css')),
                 new vscode.CancellationTokenSource().token
             );
             assert.ok(stylesheetLocation instanceof vscode.Location);
@@ -151,7 +152,7 @@ suite('Extension Test Suite', () => {
 
             const imageLocation = await provider.provideDefinition(
                 document,
-                new vscode.Position(0, document.lineAt(0).text.indexOf('images/logo.png')),
+                new vscode.Position(0, line.indexOf('images/logo.png')),
                 new vscode.CancellationTokenSource().token
             );
             assert.ok(imageLocation instanceof vscode.Location);
@@ -161,7 +162,7 @@ suite('Extension Test Suite', () => {
             assert.strictEqual(
                 await provider.provideDefinition(
                     document,
-                    new vscode.Position(0, document.lineAt(0).text.indexOf('logo.png"/></VBox>')),
+                    new vscode.Position(0, line.lastIndexOf('logo.png')),
                     new vscode.CancellationTokenSource().token
                 ),
                 undefined

@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 
+// Matches quoted FXML attribute values that resolve resources relative to the current document,
+// for example image="@images/logo.png" or stylesheets="@styles/main.css".
+const resourceAttributePattern = /\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1/g;
+
 /**
  * Provides "Go to Definition" from FXML files to Java controller classes.
  * Supports:
@@ -89,7 +93,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     private getResourceReferenceAtPosition(line: string, charPos: number): string | undefined {
-        const pattern = /\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1/g;
+        const pattern = new RegExp(resourceAttributePattern);
         let match;
         while ((match = pattern.exec(line)) !== null) {
             const valueStart = match.index + match[0].indexOf(match[2]);
