@@ -510,6 +510,82 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should reuse cached workspace symbols for repeated queries', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-cache-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            const provider = new WorkspaceSymbolProvider();
+            const openedFiles: string[] = [];
+            try {
+                await withMockFindFiles([controllerPath, fxmlPath], async () => {
+                    await withMockOpenTextDocument(async () => {
+                        const firstQuerySymbols = await provider.provideWorkspaceSymbols(
+                            'sub',
+                            new vscode.CancellationTokenSource().token
+                        );
+                        const openCountsAfterFirstQuery = new Map<string, number>();
+                        for (const filePath of openedFiles) {
+                            openCountsAfterFirstQuery.set(filePath, (openCountsAfterFirstQuery.get(filePath) ?? 0) + 1);
+                        }
+
+                        const secondQuerySymbols = await provider.provideWorkspaceSymbols(
+                            'submit',
+                            new vscode.CancellationTokenSource().token
+                        );
+
+                        assert.strictEqual(firstQuerySymbols.length, 2);
+                        assert.strictEqual(secondQuerySymbols.length, 2);
+
+                        const openCounts = new Map<string, number>();
+                        for (const filePath of openedFiles) {
+                            openCounts.set(filePath, (openCounts.get(filePath) ?? 0) + 1);
+                        }
+
+                        assert.strictEqual(
+                            openCounts.get(normalizeFsPath(controllerPath)),
+                            openCountsAfterFirstQuery.get(normalizeFsPath(controllerPath))
+                        );
+                        assert.strictEqual(
+                            openCounts.get(normalizeFsPath(fxmlPath)),
+                            openCountsAfterFirstQuery.get(normalizeFsPath(fxmlPath))
+                        );
+                    }, uri => {
+                        openedFiles.push(normalizeFsPath(uri.fsPath));
+                    });
+                });
+            } finally {
+                provider.dispose();
+            }
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should only provide controller comment hovers when enabled', async () => {
         const provider = new FxmlHoverProvider();
         const document = createMockFxmlDocument('<VBox><Label text="Name"/></VBox>');
@@ -1393,6 +1469,30 @@ async function withMockFindFiles(
         await run();
     } finally {
         workspace.findFiles = originalFindFiles;
+    }
+}
+
+async function withMockOpenTextDocument(
+    run: () => Promise<void>,
+    onOpenTextDocument?: (uri: vscode.Uri) => void
+): Promise<void> {
+    const workspace = vscode.workspace as unknown as { openTextDocument: typeof vscode.workspace.openTextDocument };
+    const originalOpenTextDocument = workspace.openTextDocument;
+    workspace.openTextDocument = (async (...args: unknown[]) => {
+        const [target] = args;
+        if (target instanceof vscode.Uri) {
+            onOpenTextDocument?.(target);
+        } else if (typeof target === 'string') {
+            onOpenTextDocument?.(vscode.Uri.file(target));
+        }
+
+        return await (originalOpenTextDocument as (...originalArgs: unknown[]) => Thenable<vscode.TextDocument>)(...args);
+    }) as typeof vscode.workspace.openTextDocument;
+
+    try {
+        await run();
+    } finally {
+        workspace.openTextDocument = originalOpenTextDocument;
     }
 }
 

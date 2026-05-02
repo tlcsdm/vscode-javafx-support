@@ -86,9 +86,11 @@ export function activate(context: vscode.ExtensionContext): void {
             new FxmlDocumentSymbolProvider()
         )
     );
+    const workspaceSymbolProvider = new WorkspaceSymbolProvider();
+    context.subscriptions.push(workspaceSymbolProvider);
     context.subscriptions.push(
         vscode.languages.registerWorkspaceSymbolProvider(
-            new WorkspaceSymbolProvider()
+            workspaceSymbolProvider
         )
     );
     context.subscriptions.push(
