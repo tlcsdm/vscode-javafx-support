@@ -14,6 +14,7 @@ import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvide
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
+import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
@@ -358,6 +359,78 @@ suite('Extension Test Suite', () => {
                 );
                 assert.ok(controllerReference);
                 assert.deepStrictEqual(controllerReference!.range.start, new vscode.Position(7, 19));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should provide workspace symbols for matching fx:id and @FXML fields', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '',
+                '    private Button ignoredButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button',
+                '      fx:id="submitButton"',
+                '      text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath, fxmlPath], async () => {
+                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+                    'vscode.executeWorkspaceSymbolProvider',
+                    'SUBMIT'
+                );
+
+                assert.ok(symbols);
+
+                const matchingSymbols = symbols!.filter(symbol =>
+                    ['Main.fxml', 'MainController.java'].includes(path.basename(symbol.location.uri.fsPath))
+                );
+                assert.strictEqual(matchingSymbols.length, 2);
+
+                const javaSymbol = matchingSymbols.find(symbol =>
+                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(controllerPath)
+                );
+                assert.ok(javaSymbol);
+                assert.strictEqual(javaSymbol!.name, 'submitButton');
+                assert.strictEqual(javaSymbol!.kind, vscode.SymbolKind.Field);
+                assert.strictEqual(javaSymbol!.containerName, 'com.example.MainController');
+                assert.deepStrictEqual(javaSymbol!.location.range.start, new vscode.Position(7, 19));
+
+                const fxmlSymbol = matchingSymbols.find(symbol =>
+                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(fxmlPath)
+                );
+                assert.ok(fxmlSymbol);
+                assert.strictEqual(fxmlSymbol!.name, 'submitButton');
+                assert.strictEqual(fxmlSymbol!.kind, vscode.SymbolKind.Variable);
+                assert.strictEqual(fxmlSymbol!.containerName, 'Button');
+                assert.deepStrictEqual(fxmlSymbol!.location.range.start, new vscode.Position(3, 13));
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -835,6 +908,9 @@ suite('Extension Test Suite', () => {
 
         const foldingRanges = new FxmlFoldingRangeProvider().provideFoldingRanges(document, {}, cancelledToken);
         assert.deepStrictEqual(foldingRanges, []);
+
+        const workspaceSymbols = await new WorkspaceSymbolProvider().provideWorkspaceSymbols('submit', cancelledToken);
+        assert.deepStrictEqual(workspaceSymbols, []);
     });
 
     test('Should fold consecutive FXML import processing instructions as imports', () => {

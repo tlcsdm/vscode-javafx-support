@@ -11,6 +11,7 @@ import { FxmlDiagnosticProvider } from './fxmlDiagnostics';
 import { registerFxmlControllerCache } from './fxmlControllerCache';
 import { FxmlHoverProvider } from './fxmlHoverProvider';
 import { FxmlReferenceProvider } from './fxmlReferenceProvider';
+import { WorkspaceSymbolProvider } from './workspaceSymbolProvider';
 
 /**
  * Extension activation
@@ -83,6 +84,11 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentSymbolProvider(
             fxmlSelector,
             new FxmlDocumentSymbolProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerWorkspaceSymbolProvider(
+            new WorkspaceSymbolProvider()
         )
     );
     context.subscriptions.push(

@@ -7,6 +7,7 @@
 - Add FXML diagnostics for missing `fx:controller` classes, duplicate `fx:id` values, unresolved controller fields, and missing event handlers
 - Add optional FXML hovers for `fx:controller` classes, controller `fx:id` fields, and event handler comments with configurable delay
 - Add Find All References support for FXML `fx:id` values to show `$fx:id` usages in the current document plus the matching controller field declaration
+- Add workspace symbol search for FXML `fx:id` values and matching Java `@FXML` fields
 
 ## [1.0.4] - 2026-05-02
 
