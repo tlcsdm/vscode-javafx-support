@@ -1222,8 +1222,7 @@ function getRangeText(document: vscode.TextDocument, range: vscode.Range): strin
 
 function getHoverText(hover: vscode.Hover): string {
     return hover.contents
-        // MarkdownString.appendText encodes spaces as &nbsp; in the serialized value.
-        .map(content => (typeof content === 'string' ? content : content.value).replace(/&nbsp;/g, ' '))
+        .map(content => decodeHoverMarkdown(typeof content === 'string' ? content : content.value))
         .join('\n');
 }
 
@@ -1233,4 +1232,9 @@ function createThrowingTextDocument(): vscode.TextDocument {
             throw new Error('document should not be accessed after cancellation');
         },
     }) as vscode.TextDocument;
+}
+
+function decodeHoverMarkdown(value: string): string {
+    // MarkdownString.appendText encodes spaces as &nbsp; in the serialized value.
+    return value.replace(/&nbsp;/g, ' ');
 }

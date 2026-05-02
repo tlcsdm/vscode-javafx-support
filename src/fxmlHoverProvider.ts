@@ -207,7 +207,7 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
                 : undefined;
 
             if (fxmlAnnotationLine >= 0 && i - fxmlAnnotationLine <= 2) {
-                return memberInfo;
+                return memberInfo ?? bestMatch;
             }
 
             if (memberInfo && !bestMatch) {
