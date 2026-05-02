@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { classExtends, getFullyQualifiedClassName } from './javaControllerResolver';
+import { getFxmlFilesForMember } from './fxmlControllerCache';
+import { getFullyQualifiedClassName } from './javaControllerResolver';
 
 /**
  * Provides "Go to Definition" from Java controller classes to FXML files.
@@ -123,7 +124,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
             return undefined;
         }
 
-        const fxmlFiles = await vscode.workspace.findFiles('**/*.fxml', '**/node_modules/**');
+        const fxmlFiles = await getFxmlFilesForMember(controllerClassName, memberName, isMethod, token);
 
         if (token.isCancellationRequested) {
             return undefined;
@@ -138,16 +139,6 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
 
             if (token.isCancellationRequested) {
                 return undefined;
-            }
-
-            const controllerInFxml = this.getControllerClassName(document);
-
-            // Check if this FXML uses the specified controller
-            if (!controllerInFxml || (
-                controllerInFxml !== controllerClassName
-                && !await classExtends(controllerInFxml, controllerClassName, token)
-            )) {
-                continue;
             }
 
             // Search for the member in the FXML
@@ -167,11 +158,6 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return undefined;
-    }
-
-    private getControllerClassName(document: vscode.TextDocument): string | undefined {
-        const match = document.getText().match(/fx:controller\s*=\s*"([^"]+)"/);
-        return match ? match[1] : undefined;
     }
 
     /**
