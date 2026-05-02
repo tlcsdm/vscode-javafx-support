@@ -4,6 +4,7 @@
 
 ### Added
 - Linked editing for matching FXML start/end tags so renaming `<Label>` also updates `</Label>`
+- FXML folding ranges for nested elements, default-collapsed consecutive `<?import ...?>` blocks, and multiline tags
 
 ### Fixed
 - Enabled linked editing by default for FXML files so matching tag renames take effect immediately
