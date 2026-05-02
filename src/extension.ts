@@ -5,6 +5,7 @@ import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
 import { FxmlFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
 import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
+import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider';
 
 /**
  * Extension activation
@@ -72,6 +73,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerDocumentSymbolProvider(
             fxmlSelector,
             new FxmlDocumentSymbolProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerLinkedEditingRangeProvider(
+            fxmlSelector,
+            new FxmlLinkedEditingRangeProvider()
         )
     );
 
