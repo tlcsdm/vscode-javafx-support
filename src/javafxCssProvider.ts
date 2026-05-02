@@ -9,11 +9,17 @@ interface CssPropertyMatch {
 interface ValueCompletionContext {
     readonly definition: JavafxCssPropertyDefinition;
     readonly range: vscode.Range;
+    readonly appendSemicolon: boolean;
 }
 
 interface JavafxCssValueOption {
     readonly value: string;
     readonly label: string;
+}
+
+interface CssDocumentContext {
+    readonly prefix: string;
+    readonly suffix: string;
 }
 
 const MANUAL_VALUE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
@@ -31,8 +37,8 @@ const EXCLUDED_VALUE_SUGGESTIONS = new Set([
     'value',
 ]);
 const FX_PROPERTY_TOKEN_PATTERN = '-fx-[a-z0-9]+(?:-[a-z0-9]+)*';
-const FX_PROPERTY_PREFIX_PATTERN = /(^|\s)(-fx-(?:[a-z0-9]+(?:-[a-z0-9]+)*)?)$/i;
-const FX_PROPERTY_DECLARATION_PATTERN = new RegExp(`(${FX_PROPERTY_TOKEN_PATTERN})\\s*:\\s*([^;}]*)$`, 'i');
+const FX_PROPERTY_PREFIX_PATTERN = /(^|\s)(-fx-?(?:[a-z0-9]+(?:-[a-z0-9]+)*)?)$/i;
+const FX_PROPERTY_DECLARATION_PATTERN = new RegExp(`(${FX_PROPERTY_TOKEN_PATTERN})\\s*:(\\s*[^;}]*)$`, 'i');
 const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
 
 const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
@@ -83,7 +89,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         return valueOptions.map(option => {
             const item = new vscode.CompletionItem(option.label, vscode.CompletionItemKind.EnumMember);
             item.detail = `JavaFX CSS value for ${context.definition.name}`;
-            item.insertText = option.value;
+            item.insertText = ` ${option.value}${context.appendSemicolon ? ';' : ''}`;
             item.filterText = `${option.label} ${option.value}`;
             item.range = context.range;
             item.documentation = createValueDocumentation(context.definition, option.value);
@@ -92,8 +98,12 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
     }
 
     private getPropertyNamePrefix(document: vscode.TextDocument, position: vscode.Position): { prefix: string; range: vscode.Range } | undefined {
-        const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
-        const declarationPrefix = getCurrentDeclarationPrefix(linePrefix);
+        const context = getCssDocumentContext(document, position);
+        if (!context) {
+            return undefined;
+        }
+
+        const declarationPrefix = getCurrentDeclarationPrefix(context.prefix);
         if (declarationPrefix.includes(':')) {
             return undefined;
         }
@@ -111,8 +121,12 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
     }
 
     private getValueCompletionContext(document: vscode.TextDocument, position: vscode.Position): ValueCompletionContext | undefined {
-        const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
-        const declarationPrefix = getCurrentDeclarationPrefix(linePrefix);
+        const context = getCssDocumentContext(document, position);
+        if (!context) {
+            return undefined;
+        }
+
+        const declarationPrefix = getCurrentDeclarationPrefix(context.prefix);
         const match = FX_PROPERTY_DECLARATION_PATTERN.exec(declarationPrefix);
         if (!match) {
             return undefined;
@@ -125,17 +139,17 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
         }
 
         const rawValuePrefix = match[2];
-        const currentValuePrefixMatch = /[^,\s]*$/.exec(rawValuePrefix);
-        const currentValuePrefix = currentValuePrefixMatch?.[0] ?? '';
+        const valueReplacementLength = getCurrentValueReplacementLength(rawValuePrefix);
 
         return {
             definition,
             range: new vscode.Range(
                 position.line,
-                position.character - currentValuePrefix.length,
+                position.character - valueReplacementLength,
                 position.line,
                 position.character
             ),
+            appendSemicolon: !/^\s*;/.test(context.suffix),
         };
     }
 }
@@ -220,6 +234,42 @@ function getCurrentDeclarationPrefix(linePrefix: string): string {
         linePrefix.lastIndexOf(';')
     );
     return linePrefix.slice(separatorIndex + 1);
+}
+
+function getCurrentValueReplacementLength(rawValuePrefix: string): number {
+    const separatorIndex = rawValuePrefix.lastIndexOf(',');
+    return separatorIndex >= 0
+        ? rawValuePrefix.length - separatorIndex - 1
+        : rawValuePrefix.length;
+}
+
+function getCssDocumentContext(document: vscode.TextDocument, position: vscode.Position): CssDocumentContext | undefined {
+    const lineText = document.lineAt(position.line).text;
+    if (document.languageId === 'fxml') {
+        return getFxmlStyleAttributeContext(lineText, position.character);
+    }
+
+    return {
+        prefix: lineText.slice(0, position.character),
+        suffix: lineText.slice(position.character),
+    };
+}
+
+function getFxmlStyleAttributeContext(lineText: string, character: number): CssDocumentContext | undefined {
+    const linePrefix = lineText.slice(0, character);
+    const attributeMatch = /\bstyle\s*=\s*(["'])([^"']*)$/i.exec(linePrefix);
+    if (!attributeMatch) {
+        return undefined;
+    }
+
+    const quote = attributeMatch[1];
+    const lineSuffix = lineText.slice(character);
+    const closingQuoteIndex = lineSuffix.indexOf(quote);
+
+    return {
+        prefix: attributeMatch[2],
+        suffix: closingQuoteIndex >= 0 ? lineSuffix.slice(0, closingQuoteIndex) : lineSuffix,
+    };
 }
 
 function extractValueOptions(definition: JavafxCssPropertyDefinition): readonly JavafxCssValueOption[] {

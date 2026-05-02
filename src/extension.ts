@@ -112,6 +112,18 @@ export function activate(context: vscode.ExtensionContext): void {
             cssSelector,
             new JavafxCssCompletionProvider(),
             '-',
+            'f',
+            'x',
+            ' ',
+            ':'
+        ),
+        vscode.languages.registerCompletionItemProvider(
+            fxmlSelector,
+            new JavafxCssCompletionProvider(),
+            '-',
+            'f',
+            'x',
+            ' ',
             ':'
         ),
         vscode.languages.registerHoverProvider(

@@ -752,26 +752,32 @@ suite('Extension Test Suite', () => {
         }
     });
 
-    test('Should provide JavaFX CSS property completions for -fx- prefixes', async () => {
+    test('Should provide JavaFX CSS property completions while typing -fx prefixes', async () => {
         const provider = new JavafxCssCompletionProvider();
-        const document = createMockCssDocument([
-            '.root {',
-            '  -fx-',
-            '}',
-        ].join('\n'));
+        const document = createMockCssDocument('.root { -fx }');
 
-        const completions = await provider.provideCompletionItems(
+        const completionsAfterFx = await provider.provideCompletionItems(
             document,
-            new vscode.Position(1, document.lineAt(1).text.length),
+            new vscode.Position(0, document.lineAt(0).text.indexOf('-fx') + '-fx'.length),
             new vscode.CancellationTokenSource().token
         );
 
-        assert.ok(Array.isArray(completions));
+        assert.ok(Array.isArray(completionsAfterFx));
         assert.strictEqual(JAVA_FX_CSS_PROPERTY_DEFINITIONS.length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
-        assert.strictEqual((completions as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
-        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-alignment'));
-        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
-        assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-text-fill'));
+        assert.strictEqual((completionsAfterFx as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
+
+        const dashDocument = createMockCssDocument('.root { -fx- }');
+        const completionsAfterFxDash = await provider.provideCompletionItems(
+            dashDocument,
+            new vscode.Position(0, dashDocument.lineAt(0).text.indexOf('-fx-') + '-fx-'.length),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(Array.isArray(completionsAfterFxDash));
+        assert.strictEqual((completionsAfterFxDash as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
+        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-alignment'));
+        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
+        assert.ok((completionsAfterFxDash as vscode.CompletionItem[]).some(item => item.label === '-fx-text-fill'));
     });
 
     test('Should provide JavaFX CSS value completions for enum-like properties', async () => {
@@ -795,9 +801,42 @@ suite('Extension Test Suite', () => {
         const topLeft = items.find(item => item.label === 'TOP_LEFT');
 
         assert.ok(center);
-        assert.strictEqual(center?.insertText, 'center');
+        assert.strictEqual(center?.insertText, ' center;');
+        assert.ok(center?.range instanceof vscode.Range);
+        assert.strictEqual(getRangeText(document, center!.range as vscode.Range), ' c');
         assert.ok(topLeft);
-        assert.strictEqual(topLeft?.insertText, 'top-left');
+        assert.strictEqual(topLeft?.insertText, ' top-left;');
+    });
+
+    test('Should provide JavaFX CSS completions inside FXML style attributes', async () => {
+        const provider = new JavafxCssCompletionProvider();
+        const propertyDocument = createMockFxmlDocument('<Button style="-fx"/>');
+        const propertyLine = propertyDocument.lineAt(0).text;
+
+        const propertyCompletions = await provider.provideCompletionItems(
+            propertyDocument,
+            new vscode.Position(0, propertyLine.indexOf('-fx') + '-fx'.length),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(Array.isArray(propertyCompletions));
+        assert.ok((propertyCompletions as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
+
+        const valueDocument = createMockFxmlDocument('<Button style="-fx-alignment:c"/>');
+        const valueLine = valueDocument.lineAt(0).text;
+        const valueCompletions = await provider.provideCompletionItems(
+            valueDocument,
+            new vscode.Position(0, valueLine.indexOf(':c') + ':c'.length),
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(Array.isArray(valueCompletions));
+
+        const center = (valueCompletions as vscode.CompletionItem[]).find(item => item.label === 'CENTER');
+        assert.ok(center);
+        assert.strictEqual(center?.insertText, ' center;');
+        assert.ok(center?.range instanceof vscode.Range);
+        assert.strictEqual(getRangeText(valueDocument, center!.range as vscode.Range), 'c');
     });
 
     test('Should provide JavaFX CSS hovers for -fx- properties', () => {
