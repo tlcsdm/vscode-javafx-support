@@ -21,6 +21,19 @@ const MANUAL_VALUE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
     '-fx-side': ['top', 'right', 'bottom', 'left'],
     '-fx-title-side': ['top', 'right', 'bottom', 'left'],
 };
+const EXCLUDED_VALUE_SUGGESTIONS = new Set([
+    'where',
+    'phase',
+    'line-join',
+    'line-cap',
+    'series',
+    'data',
+    'value',
+]);
+const FX_PROPERTY_TOKEN_PATTERN = '-fx-[a-z0-9]+(?:-[a-z0-9]+)*';
+const FX_PROPERTY_PREFIX_PATTERN = /(^|\s)(-fx-(?:[a-z0-9]+(?:-[a-z0-9]+)*)?)$/i;
+const FX_PROPERTY_DECLARATION_PATTERN = new RegExp(`(${FX_PROPERTY_TOKEN_PATTERN})\\s*:\\s*([^;}]*)$`, 'i');
+const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
 
 const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
     ...definition,
@@ -85,7 +98,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
             return undefined;
         }
 
-        const match = /(^|\s)(-fx-[a-z0-9-]*)$/i.exec(declarationPrefix);
+        const match = FX_PROPERTY_PREFIX_PATTERN.exec(declarationPrefix);
         if (!match) {
             return undefined;
         }
@@ -100,7 +113,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
     private getValueCompletionContext(document: vscode.TextDocument, position: vscode.Position): ValueCompletionContext | undefined {
         const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
         const declarationPrefix = getCurrentDeclarationPrefix(linePrefix);
-        const match = /(-fx-[a-z0-9-]+)\s*:\s*([^;}]*)$/i.exec(declarationPrefix);
+        const match = FX_PROPERTY_DECLARATION_PATTERN.exec(declarationPrefix);
         if (!match) {
             return undefined;
         }
@@ -147,9 +160,9 @@ export class JavafxCssHoverProvider implements vscode.HoverProvider {
 
     private getPropertyAtPosition(document: vscode.TextDocument, position: vscode.Position): CssPropertyMatch | undefined {
         const lineText = document.lineAt(position.line).text;
-        const pattern = /-fx-[a-z0-9-]+/gi;
+        FX_PROPERTY_GLOBAL_PATTERN.lastIndex = 0;
         let match: RegExpExecArray | null;
-        while ((match = pattern.exec(lineText)) !== null) {
+        while ((match = FX_PROPERTY_GLOBAL_PATTERN.exec(lineText)) !== null) {
             const start = match.index;
             const end = start + match[0].length;
             if (position.character < start || position.character > end) {
@@ -221,10 +234,18 @@ function extractValueOptions(definition: JavafxCssPropertyDefinition): readonly 
 
     const seen = new Set<string>();
     const values: JavafxCssValueOption[] = [];
-    const pattern = /(?<!<)\b[a-z][a-z0-9-]*\b(?!>)(?!\s*\()/g;
+    // Match literal keywords from the CSS grammar while skipping angle-bracketed type names
+    // such as <size> and function names such as segments(...).
+    const pattern = /\b[a-z][a-z0-9-]*\b(?!\s*\()/g;
+    const syntax = definition.syntax.toLowerCase();
     let match: RegExpExecArray | null;
-    while ((match = pattern.exec(definition.syntax.toLowerCase())) !== null) {
+    while ((match = pattern.exec(syntax)) !== null) {
         const value = match[0];
+        const characterBeforeMatch = syntax[match.index - 1];
+        const characterAfterMatch = syntax[match.index + value.length];
+        if (characterBeforeMatch === '<' || characterAfterMatch === '>') {
+            continue;
+        }
         if (!isValueSuggestion(value) || seen.has(value)) {
             continue;
         }
@@ -237,19 +258,7 @@ function extractValueOptions(definition: JavafxCssPropertyDefinition): readonly 
 }
 
 function isValueSuggestion(value: string): boolean {
-    switch (value) {
-    case 'where':
-    case 'phase':
-    case 'line-join':
-    case 'line-cap':
-    case 'series':
-    case 'data':
-    case 'value':
-    case 'null':
-        return value === 'null';
-    default:
-        return true;
-    }
+    return value === 'null' || !EXCLUDED_VALUE_SUGGESTIONS.has(value);
 }
 
 function toDisplayValue(value: string): string {

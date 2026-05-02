@@ -9,7 +9,7 @@ export interface JavafxCssPropertyDefinition {
 export const JAVA_FX_CSS_PROPERTY_DEFINITIONS: readonly JavafxCssPropertyDefinition[] = [
     {
         "name": "-fx-alignment",
-        "syntax": "[ top-left | top-center | top-right | center-left | center | center-right bottom-left | bottom-center | bottom-right | baseline-left | baseline-center | baseline-right ]",
+        "syntax": "[ top-left | top-center | top-right | center-left | center | center-right | bottom-left | bottom-center | bottom-right | baseline-left | baseline-center | baseline-right ]",
         "defaultValue": "top-left",
         "description": "",
         "appliesTo": [
@@ -175,15 +175,6 @@ export const JAVA_FX_CSS_PROPERTY_DEFINITIONS: readonly JavafxCssPropertyDefinit
         "description": "A series of paint values or sets of four paint values, separated by commas. For each item in the series, if a single paint value is specified, then that paint is used as the border for all sides of the region; and if a set of four paints is specified, they are used for the top, right, bottom, and left borders of the region, in that order. If the border is not rectangular, only the first paint value in the set is used.",
         "appliesTo": [
             "Region"
-        ]
-    },
-    {
-        "name": "-fx-border-image",
-        "syntax": "",
-        "defaultValue": "",
-        "description": "JavaFX CSS property documented by the OpenJFX CSS reference.",
-        "appliesTo": [
-            "JavaFX"
         ]
     },
     {
@@ -403,33 +394,6 @@ export const JAVA_FX_CSS_PROPERTY_DEFINITIONS: readonly JavafxCssPropertyDefinit
         "appliesTo": [
             "RichTextArea",
             "TextInputControl"
-        ]
-    },
-    {
-        "name": "-fx-ease-both",
-        "syntax": "",
-        "defaultValue": "",
-        "description": "JavaFX CSS property documented by the OpenJFX CSS reference.",
-        "appliesTo": [
-            "JavaFX"
-        ]
-    },
-    {
-        "name": "-fx-ease-in",
-        "syntax": "",
-        "defaultValue": "",
-        "description": "JavaFX CSS property documented by the OpenJFX CSS reference.",
-        "appliesTo": [
-            "JavaFX"
-        ]
-    },
-    {
-        "name": "-fx-ease-out",
-        "syntax": "",
-        "defaultValue": "",
-        "description": "JavaFX CSS property documented by the OpenJFX CSS reference.",
-        "appliesTo": [
-            "JavaFX"
         ]
     },
     {
@@ -1135,15 +1099,6 @@ export const JAVA_FX_CSS_PROPERTY_DEFINITIONS: readonly JavafxCssPropertyDefinit
         ]
     },
     {
-        "name": "-fx-prefers-persistent-scrollbars",
-        "syntax": "",
-        "defaultValue": "",
-        "description": "JavaFX CSS property documented by the OpenJFX CSS reference.",
-        "appliesTo": [
-            "JavaFX"
-        ]
-    },
-    {
         "name": "-fx-preserve-ratio",
         "syntax": "<boolean>",
         "defaultValue": "false",
@@ -1633,7 +1588,7 @@ export const JAVA_FX_CSS_PROPERTY_DEFINITIONS: readonly JavafxCssPropertyDefinit
     },
     {
         "name": "-fx-tile-alignment",
-        "syntax": "[ top-left | top-center | top-right | center-left | center | center-right bottom-left | bottom-center | bottom-right | baseline-left | baseline-center | baseline-right ]",
+        "syntax": "[ top-left | top-center | top-right | center-left | center | center-right | bottom-left | bottom-center | bottom-right | baseline-left | baseline-center | baseline-right ]",
         "defaultValue": "center",
         "description": "",
         "appliesTo": [

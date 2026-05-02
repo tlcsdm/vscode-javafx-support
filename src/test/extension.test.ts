@@ -14,12 +14,14 @@ import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvide
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
+import { JAVA_FX_CSS_PROPERTY_DEFINITIONS } from '../javafxCssData';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from '../javafxCssProvider';
 import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
 const FXML_CONTROLLER_CACHE_TEMP_PREFIX = 'fxml-controller-cache-';
+const EXPECTED_JAVAFX_CSS_PROPERTY_COUNT = 188;
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -765,7 +767,8 @@ suite('Extension Test Suite', () => {
         );
 
         assert.ok(Array.isArray(completions));
-        assert.ok((completions as vscode.CompletionItem[]).length >= 190);
+        assert.strictEqual(JAVA_FX_CSS_PROPERTY_DEFINITIONS.length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
+        assert.strictEqual((completions as vscode.CompletionItem[]).length, EXPECTED_JAVAFX_CSS_PROPERTY_COUNT);
         assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-alignment'));
         assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-background-color'));
         assert.ok((completions as vscode.CompletionItem[]).some(item => item.label === '-fx-text-fill'));
