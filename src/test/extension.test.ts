@@ -1159,7 +1159,7 @@ async function withMockJavafxSupportConfiguration(
 ): Promise<void> {
     const workspace = vscode.workspace as unknown as { getConfiguration: typeof vscode.workspace.getConfiguration };
     const originalGetConfiguration = workspace.getConfiguration;
-    workspace.getConfiguration = ((section?: string, scope?: vscode.ConfigurationScope | null) => {
+    const mockedGetConfiguration: typeof vscode.workspace.getConfiguration = (section?: string, scope?: vscode.ConfigurationScope | null) => {
         const configuration = originalGetConfiguration(section, scope);
         if (section !== 'tlcsdm.javafxSupport') {
             return configuration;
@@ -1176,7 +1176,8 @@ async function withMockJavafxSupportConfiguration(
                 return configuredValue === undefined ? defaultValue as T : configuredValue;
             },
         } as vscode.WorkspaceConfiguration;
-    }) as typeof vscode.workspace.getConfiguration;
+    };
+    workspace.getConfiguration = mockedGetConfiguration;
 
     try {
         await run();

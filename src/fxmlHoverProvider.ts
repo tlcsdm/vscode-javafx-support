@@ -44,6 +44,11 @@ const JAVAFX_HOVER_SUMMARIES: Readonly<Record<string, string>> = {
     vbox: 'A layout pane that lays out its children in a single vertical column.',
 };
 
+const JAVA_MEMBER_MODIFIERS = '(?:public|protected|private|static|final|abstract|synchronized|native|strictfp|default)';
+const JAVA_FIELD_MODIFIERS = '(?:public|protected|private|static|final|transient|volatile)';
+const JAVA_TYPE_PATTERN = '[\\w.$<>\\[\\],?\\s]+';
+const JAVA_METHOD_TYPE_PREFIX = `(?:<[^>]+>\\s*)?${JAVA_TYPE_PATTERN}`;
+
 interface HoverTarget {
     kind: 'tag' | 'field' | 'method';
     name: string;
@@ -324,9 +329,15 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
             .replace(/\s*;$/, '')
             .trim();
 
-        const signaturePattern = new RegExp(
-            `^(?:(?:public|protected|private|static|final|abstract|synchronized|native|strictfp|default)\\s+)*(?<signature>(?:<[^>]+>\\s*)?[\\w.$<>\\[\\],?\\s]+\\s+${this.escapeRegex(methodName)}\\s*\\([^)]*\\)(?:\\s*throws\\s+[\\w.$,\\s]+)?)$`
-        );
+        const signaturePattern = new RegExp([
+            '^(?:',
+            `${JAVA_MEMBER_MODIFIERS}\\s+`,
+            ')*(?<signature>',
+            `${JAVA_METHOD_TYPE_PREFIX}\\s+`,
+            `${this.escapeRegex(methodName)}\\s*\\([^)]*\\)`,
+            '(?:\\s*throws\\s+[\\w.$,\\s]+)?',
+            ')$',
+        ].join(''));
         const signatureMatch = signaturePattern.exec(declaration);
         return signatureMatch?.groups?.signature?.trim() ?? declaration;
     }
@@ -342,9 +353,14 @@ export class FxmlHoverProvider implements vscode.HoverProvider {
             .replace(/\s*;$/, '')
             .trim();
 
-        const fieldPattern = new RegExp(
-            `^(?:(?:public|protected|private|static|final|transient|volatile)\\s+)*(?<type>[\\w.$<>\\[\\],?\\s]+?)\\s+${this.escapeRegex(fieldName)}$`
-        );
+        const fieldPattern = new RegExp([
+            '^(?:',
+            `${JAVA_FIELD_MODIFIERS}\\s+`,
+            ')*(?<type>',
+            `${JAVA_TYPE_PATTERN}?`,
+            ')\\s+',
+            `${this.escapeRegex(fieldName)}$`,
+        ].join(''));
         const declarationMatch = fieldPattern.exec(declaration);
         return declarationMatch?.groups?.type
             ? `${declarationMatch.groups.type.trim()} ${fieldName}`
