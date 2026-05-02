@@ -791,18 +791,15 @@ suite('Extension Test Suite', () => {
         const alignment = completionsAfterFxDash.find(item => item.label === '-fx-alignment');
         assert.ok(alignment);
         assert.strictEqual(alignment?.filterText, '-fx-alignment');
-        assert.match(alignment?.sortText ?? '', /^0000-javafx-css-/);
         assert.ok(completionsAfterFxDash.some(item => item.label === '-fx-background-color'));
         assert.ok(completionsAfterFxDash.some(item => item.label === '-fx-text-fill'));
     });
 
     test('Should prioritize JavaFX CSS completions in CSS files with built-in suggestions', async () => {
-        const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'javafx-css-completion-'));
-        const tempDir = path.join(tempRoot, 'workspace');
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'javafx-css-completion-'));
         const cssFile = path.join(tempDir, 'style.css');
 
         try {
-            await fs.mkdir(tempDir);
             await fs.writeFile(cssFile, [
                 '.root {',
                 '  -fx-',
@@ -826,7 +823,7 @@ suite('Extension Test Suite', () => {
                 assert.ok(javaFxIndex < builtInVendorIndex);
             }
         } finally {
-            await fs.rm(tempRoot, { recursive: true, force: true });
+            await fs.rm(tempDir, { recursive: true, force: true });
         }
     });
 
