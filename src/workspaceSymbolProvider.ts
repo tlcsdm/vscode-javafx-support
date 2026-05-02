@@ -11,6 +11,7 @@ const IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS = new Set([
     'out',
     'target',
 ]);
+const SYMBOL_COLLECTION_BATCH_SIZE = 20;
 const MAX_ANNOTATION_LOOKAHEAD = 3;
 // Capture group 1 is the element name, group 2 is the quote character, and
 // capture group 3 is the fx:id value.
@@ -20,6 +21,8 @@ type CachedWorkspaceSymbol = {
     normalizedName: string;
     symbol: vscode.SymbolInformation;
 };
+
+const workspaceSymbolProviders = new Set<WorkspaceSymbolProvider>();
 
 export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<vscode.SymbolInformation>, vscode.Disposable {
     private readonly fxmlSymbols = new Map<string, CachedWorkspaceSymbol[]>();
@@ -43,10 +46,16 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
             javaWatcher.onDidDelete(uri => this.invalidateJavaUri(uri, true)),
             vscode.workspace.onDidChangeTextDocument(event => this.invalidateDocument(event.document)),
         );
+        workspaceSymbolProviders.add(this);
     }
 
     dispose(): void {
         this.disposable.dispose();
+        workspaceSymbolProviders.delete(this);
+        this.clearCaches();
+    }
+
+    clearCaches(): void {
         this.fxmlSymbols.clear();
         this.javaSymbols.clear();
         this.fxmlUris = undefined;
@@ -136,7 +145,7 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
             }
         }
 
-        await processInBatches(missingUris, 20, async uri => {
+        await processInBatches(missingUris, SYMBOL_COLLECTION_BATCH_SIZE, async uri => {
             if (token.isCancellationRequested) {
                 return;
             }
@@ -327,5 +336,11 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         }
 
         return false;
+    }
+}
+
+export function resetWorkspaceSymbolProvidersForTests(): void {
+    for (const provider of workspaceSymbolProviders) {
+        provider.clearCaches();
     }
 }

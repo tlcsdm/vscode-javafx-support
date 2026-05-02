@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { findJavaClass, getSuperclassName, type JavaClassInfo } from './javaControllerResolver';
+import { clearJavaClassCache, findJavaClass, getSuperclassName, type JavaClassInfo } from './javaControllerResolver';
 import { getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
 
 const FXML_LANGUAGE_IDS = ['fxml'];
@@ -31,6 +31,7 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
             }),
             vscode.workspace.onDidSaveTextDocument(document => {
                 if (this.shouldRefreshOpenFxmlDocuments(document)) {
+                    clearJavaClassCache();
                     this.refreshOpenFxmlDocuments();
                     return;
                 }

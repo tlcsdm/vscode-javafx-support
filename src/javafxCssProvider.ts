@@ -228,6 +228,7 @@ export class JavafxCssHoverProvider implements vscode.HoverProvider {
 }
 
 async function getJavafxCssData(): Promise<JavafxCssData> {
+    // Node16 module resolution requires the emitted JavaScript extension in dynamic imports.
     javafxCssData ??= import('./javafxCssData.js').then((module: typeof import('./javafxCssData.js')) => {
         const propertyDefinitions = module.JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
             ...definition,

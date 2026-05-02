@@ -8,7 +8,6 @@ type CachedFxmlEntry = {
     fieldIds: ReadonlySet<string>;
     methodNames: ReadonlySet<string>;
     uri: vscode.Uri;
-    version: number;
 };
 
 class FxmlControllerCache implements vscode.Disposable {
@@ -115,7 +114,6 @@ class FxmlControllerCache implements vscode.Disposable {
                 fieldIds: members.fieldIds,
                 methodNames: members.methodNames,
                 uri,
-                version: currentDocument.version,
             });
         } catch {
             this.remove(uri);
@@ -203,7 +201,19 @@ class FxmlControllerCache implements vscode.Disposable {
 
     private hasCurrentDocumentEntry(document: vscode.TextDocument): boolean {
         const entry = this.entries.get(document.uri.fsPath);
-        return !!entry && entry.version === document.version;
+        if (!entry) {
+            return false;
+        }
+
+        const text = document.getText();
+        const controllerClassName = getControllerClassName(text);
+        if (entry.controllerClassName !== controllerClassName) {
+            return false;
+        }
+
+        const members = getFxmlMembers(text);
+        return setsEqual(entry.fieldIds, members.fieldIds)
+            && setsEqual(entry.methodNames, members.methodNames);
     }
 
     private isIgnored(uri: vscode.Uri): boolean {
@@ -257,4 +267,18 @@ function getFxmlMembers(text: string): { fieldIds: ReadonlySet<string>; methodNa
     }
 
     return { fieldIds, methodNames };
+}
+
+function setsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+    if (left.size !== right.size) {
+        return false;
+    }
+
+    for (const value of left) {
+        if (!right.has(value)) {
+            return false;
+        }
+    }
+
+    return true;
 }

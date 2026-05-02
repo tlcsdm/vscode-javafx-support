@@ -48,6 +48,10 @@ export function registerJavaClassCache(): vscode.Disposable {
 }
 
 export function resetJavaClassCacheForTests(): void {
+    clearJavaClassCache();
+}
+
+export function clearJavaClassCache(): void {
     javaClassUriCache.clear();
 }
 
