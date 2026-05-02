@@ -205,7 +205,7 @@ class FxmlControllerCache implements vscode.Disposable {
     }
 
     private isIgnored(uri: vscode.Uri): boolean {
-        return uri.fsPath.split(/[\\/]/).includes('node_modules');
+        return uri.fsPath.includes('/node_modules/') || uri.fsPath.includes('\\node_modules\\');
     }
 }
 
@@ -250,7 +250,7 @@ function getFxmlMembers(text: string): { fieldIds: ReadonlySet<string>; methodNa
         fieldIds.add(match[1]);
     }
 
-    for (const match of text.matchAll(/=\s*"#([^"]+)"/g)) {
+    for (const match of text.matchAll(/\bon[A-Z][\w.-]*\s*=\s*"#([^"]+)"/g)) {
         methodNames.add(match[1]);
     }
 
