@@ -5,6 +5,13 @@ import { getFullyQualifiedClassName } from './javaControllerResolver';
 const FXML_GLOB = '**/*.fxml';
 const JAVA_GLOB = '**/*.java';
 const EXCLUDE_GLOB = '**/node_modules/**';
+const IGNORED_JAVA_DIRECTORY_SEGMENTS = new Set([
+    'bin',
+    'build',
+    'node_modules',
+    'out',
+    'target',
+]);
 const MAX_ANNOTATION_LOOKAHEAD = 3;
 // Capture group 1 is the element name, group 2 is the quote character, and
 // capture group 3 is the fx:id value.
@@ -99,6 +106,10 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
                 return [];
             }
 
+            if (this.isIgnoredJavaUri(uri)) {
+                continue;
+            }
+
             const document = await vscode.workspace.openTextDocument(uri);
             const containerName = (getFullyQualifiedClassName(document) ?? path.basename(uri.fsPath)) || 'Java';
 
@@ -190,5 +201,12 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
 
     private matchesQuery(name: string, query: string): boolean {
         return name.toLowerCase().includes(query);
+    }
+
+    private isIgnoredJavaUri(uri: vscode.Uri): boolean {
+        return path
+            .normalize(uri.fsPath)
+            .split(path.sep)
+            .some(segment => IGNORED_JAVA_DIRECTORY_SEGMENTS.has(segment.toLowerCase()));
     }
 }

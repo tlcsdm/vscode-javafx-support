@@ -437,6 +437,72 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should ignore Java build directories when providing workspace symbols', async () => {
+        const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
+        await extension?.activate();
+
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-workspace-symbols-build-'));
+        try {
+            const sourceJavaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const generatedJavaDir = path.join(tempDir, 'target', 'generated-sources', 'annotations', 'com', 'example');
+            const fxmlDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(sourceJavaDir, { recursive: true });
+            await fs.mkdir(generatedJavaDir, { recursive: true });
+            await fs.mkdir(fxmlDir, { recursive: true });
+
+            const sourceControllerPath = path.join(sourceJavaDir, 'MainController.java');
+            const generatedControllerPath = path.join(generatedJavaDir, 'MainController.java');
+            const fxmlPath = path.join(fxmlDir, 'Main.fxml');
+
+            await fs.writeFile(sourceControllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button submitButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(generatedControllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Button;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Button generatedButton;',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="submitButton" text="Submit" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([sourceControllerPath, generatedControllerPath, fxmlPath], async () => {
+                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+                    'vscode.executeWorkspaceSymbolProvider',
+                    'button'
+                );
+
+                assert.ok(symbols);
+                const javaSymbols = symbols!.filter(symbol =>
+                    symbol.kind === vscode.SymbolKind.Field
+                );
+
+                assert.strictEqual(javaSymbols.length, 1);
+                assertFsPathEqual(javaSymbols[0].location.uri.fsPath, sourceControllerPath);
+                assert.strictEqual(javaSymbols[0].name, 'submitButton');
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should only provide controller comment hovers when enabled', async () => {
         const provider = new FxmlHoverProvider();
         const document = createMockFxmlDocument('<VBox><Label text="Name"/></VBox>');
