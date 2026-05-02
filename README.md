@@ -1,6 +1,6 @@
 # JavaFX Support
 
-A VS Code extension for JavaFX development with FXML and JavaFX CSS support.
+A VS Code extension for JavaFX development with FXML support.
 
 ## Features
 
