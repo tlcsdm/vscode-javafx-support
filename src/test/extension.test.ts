@@ -796,7 +796,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Should prioritize JavaFX CSS completions in CSS files with built-in suggestions', async () => {
-        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'javafx-css-completion-'));
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `javafx-css-completion-${process.pid}-`));
         const cssFile = path.join(tempDir, 'style.css');
 
         try {

@@ -45,6 +45,7 @@ const FX_PROPERTY_GLOBAL_PATTERN = new RegExp(FX_PROPERTY_TOKEN_PATTERN, 'gi');
 const STYLE_ATTRIBUTE_VALUE_PREFIX_PATTERN = /\bstyle\s*=\s*(["'])((?:\\.|(?!\1).)*)$/i;
 const TRAILING_SEMICOLON_PATTERN = /^\s*;/;
 const CSS_VALUE_SEPARATOR = ' ';
+// Sort JavaFX properties before built-in CSS vendor-prefix suggestions such as -ms-* and -webkit-*.
 const JAVA_FX_CSS_PROPERTY_SORT_PREFIX = '0000-javafx-css-';
 
 const PROPERTY_DEFINITIONS = JAVA_FX_CSS_PROPERTY_DEFINITIONS.map(definition => ({
