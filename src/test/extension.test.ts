@@ -6,6 +6,7 @@ import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
+import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -32,6 +33,7 @@ suite('Extension Test Suite', () => {
         const editorConfig = vscode.workspace.getConfiguration('editor', { languageId: 'fxml' });
 
         assert.strictEqual(editorConfig.get('linkedEditing'), true);
+        assert.strictEqual(editorConfig.get('foldingImportsByDefault'), true);
     });
 
     test('Should provide semantic SymbolKind values for FXML outline', () => {
@@ -103,6 +105,60 @@ suite('Extension Test Suite', () => {
 
         const result = new FxmlLinkedEditingRangeProvider().provideLinkedEditingRanges(document, position, cancelledToken);
         assert.strictEqual(result, undefined);
+
+        const foldingRanges = new FxmlFoldingRangeProvider().provideFoldingRanges(document, {}, cancelledToken);
+        assert.deepStrictEqual(foldingRanges, []);
+    });
+
+    test('Should fold consecutive FXML import processing instructions as imports', () => {
+        const provider = new FxmlFoldingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '',
+            '<?import javafx.geometry.Insets?>',
+            '<?import javafx.scene.control.*?>',
+            '<?import javafx.scene.layout.*?>',
+            '',
+            '<VBox/>',
+        ].join('\n'));
+
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {},
+            new vscode.CancellationTokenSource().token
+        );
+
+        const importRange = ranges.find(range => range.kind === vscode.FoldingRangeKind.Imports);
+        assert.ok(importRange);
+        assert.strictEqual(importRange!.start, 2);
+        assert.strictEqual(importRange!.end, 4);
+    });
+
+    test('Should fold nested elements and multiline FXML tags', () => {
+        const provider = new FxmlFoldingRangeProvider();
+        const document = createMockFxmlDocument([
+            '<BorderPane>',
+            '  <top>',
+            '    <ToolBar>',
+            '      <Button',
+            '        text="Run"',
+            '        fx:id="runButton"',
+            '      />',
+            '    </ToolBar>',
+            '  </top>',
+            '</BorderPane>',
+        ].join('\n'));
+
+        const ranges = provider.provideFoldingRanges(
+            document,
+            {},
+            new vscode.CancellationTokenSource().token
+        );
+
+        assert.ok(ranges.some(range => range.start === 0 && range.end === 9));
+        assert.ok(ranges.some(range => range.start === 1 && range.end === 8));
+        assert.ok(ranges.some(range => range.start === 2 && range.end === 7));
+        assert.ok(ranges.some(range => range.start === 3 && range.end === 6));
     });
 
     test('Should provide linked editing ranges for matching FXML tag names', () => {

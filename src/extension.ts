@@ -6,6 +6,7 @@ import { FxmlFormattingEditProvider } from './fxmlFormatter';
 import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
 import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
 import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider';
+import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
 
 /**
  * Extension activation
@@ -79,6 +80,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerLinkedEditingRangeProvider(
             fxmlSelector,
             new FxmlLinkedEditingRangeProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerFoldingRangeProvider(
+            fxmlSelector,
+            new FxmlFoldingRangeProvider()
         )
     );
 

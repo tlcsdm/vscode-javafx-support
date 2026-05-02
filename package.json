@@ -90,6 +90,7 @@
     "configurationDefaults": {
       "[fxml]": {
         "editor.linkedEditing": true,
+        "editor.foldingImportsByDefault": true,
         "editor.semanticHighlighting.enabled": false
       },
       "files.associations": {
