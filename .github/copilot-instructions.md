@@ -127,7 +127,7 @@ npx @vscode/vsce package
 - Use the narrowest `when` clause possible for menu contributions.
 - Prefer built-in context keys (`resourceLangId`, `editorLangId`) over custom context keys where sufficient.
 
-### Commit Messages
+### Commit Messages and PR Title
 - Follow the **Angular commit convention** for all commits.
 - Use the format: `<type>(<scope>): <subject>` when a scope is helpful, or `<type>: <subject>` when it is not.
 - Prefer common types such as `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `style` and `chore`.
