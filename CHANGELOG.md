@@ -9,6 +9,7 @@
 - Add Find All References support for FXML `fx:id` values to show `$fx:id` usages in the current document plus the matching controller field declaration
 - Add workspace symbol search for FXML `fx:id` values and matching Java `@FXML` fields
 - Add JavaFX CSS IntelliSense in `.css` files and FXML `style` attributes with `-fx-` property completions, enum-like value suggestions, and property hovers
+- Add FXML/CSS `styleClass` linkage so FXML `styleClass` values can jump to CSS selectors, CSS selectors can find FXML usages, and FXML `styleClass` attributes complete workspace CSS class names
 
 ## [1.0.4] - 2026-05-02
 

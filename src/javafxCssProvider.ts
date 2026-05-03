@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getStyleClassCompletionContext, getWorkspaceCssClassNames } from './fxmlCssClassSupport';
 import type { JavafxCssPropertyDefinition } from './javafxCssData';
 
 interface CssPropertyMatch {
@@ -53,6 +54,7 @@ const TRAILING_SEMICOLON_PATTERN = /^\s*;/;
 const CSS_VALUE_SEPARATOR = ' ';
 // Sort JavaFX properties before built-in CSS vendor-prefix suggestions such as -ms-* and -webkit-*.
 const JAVA_FX_CSS_PROPERTY_SORT_PREFIX = '0000-javafx-css-';
+const STYLE_CLASS_SORT_PREFIX = '0000-style-class-';
 
 let javafxCssData: Promise<JavafxCssData> | undefined;
 
@@ -64,6 +66,13 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
     ): Promise<vscode.CompletionItem[] | vscode.CompletionList | undefined> {
         if (token.isCancellationRequested) {
             return undefined;
+        }
+
+        if (document.languageId === 'fxml') {
+            const styleClassCompletions = await this.provideStyleClassCompletions(document, position, token);
+            if (styleClassCompletions) {
+                return styleClassCompletions;
+            }
         }
 
         const data = await getJavafxCssData();
@@ -94,6 +103,37 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
                 return item;
             });
         return new vscode.CompletionList(items, true);
+    }
+
+    private async provideStyleClassCompletions(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.CompletionItem[] | undefined> {
+        const context = getStyleClassCompletionContext(document, position);
+        if (!context) {
+            return undefined;
+        }
+
+        const classNames = await getWorkspaceCssClassNames(token);
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        const normalizedPrefix = context.prefix.toLowerCase();
+        const items = classNames
+            .filter(className => normalizedPrefix.length === 0 || className.toLowerCase().startsWith(normalizedPrefix))
+            .map(className => {
+                const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Variable);
+                item.detail = 'JavaFX CSS class';
+                item.insertText = className;
+                item.filterText = className;
+                item.range = context.range;
+                item.sortText = `${STYLE_CLASS_SORT_PREFIX}${className}`;
+                return item;
+            });
+
+        return items.length > 0 ? items : undefined;
     }
 
     private createValueCompletionItems(context: ValueCompletionContext, data: JavafxCssData): vscode.CompletionItem[] | undefined {

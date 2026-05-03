@@ -107,6 +107,10 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerReferenceProvider(
             fxmlSelector,
             new FxmlReferenceProvider()
+        ),
+        vscode.languages.registerReferenceProvider(
+            cssSelector,
+            new FxmlReferenceProvider()
         )
     );
     context.subscriptions.push(
@@ -121,6 +125,8 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerCompletionItemProvider(
             fxmlSelector,
             new JavafxCssCompletionProvider(),
+            '"',
+            '\'',
             '-',
             'x',
             ' ',

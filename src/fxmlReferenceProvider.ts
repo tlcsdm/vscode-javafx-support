@@ -1,4 +1,8 @@
 import * as vscode from 'vscode';
+import {
+    findWorkspaceFxmlStyleClassReferences,
+    getCssClassAtPosition,
+} from './fxmlCssClassSupport';
 import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
 import { escapeRegex } from './utils';
 
@@ -21,6 +25,10 @@ export class FxmlReferenceProvider implements vscode.ReferenceProvider {
             return undefined;
         }
 
+        if (document.languageId === 'css') {
+            return this.provideCssClassReferences(document, position, context, token);
+        }
+
         const line = document.lineAt(position).text;
         const fxId = this.getAttributeValueAtPosition(line, position.character, /\bfx:id\s*=\s*"([^"]+)"/g);
         if (!fxId) {
@@ -33,6 +41,25 @@ export class FxmlReferenceProvider implements vscode.ReferenceProvider {
             if (declaration instanceof vscode.Location) {
                 references.push(declaration);
             }
+        }
+
+        return references.length > 0 ? references : undefined;
+    }
+
+    private async provideCssClassReferences(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        context: vscode.ReferenceContext,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location[] | undefined> {
+        const cssClassMatch = getCssClassAtPosition(document, position);
+        if (!cssClassMatch) {
+            return undefined;
+        }
+
+        const references = await findWorkspaceFxmlStyleClassReferences(cssClassMatch.className, token);
+        if (context.includeDeclaration) {
+            references.unshift(new vscode.Location(document.uri, cssClassMatch.range));
         }
 
         return references.length > 0 ? references : undefined;
