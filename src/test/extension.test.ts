@@ -9,6 +9,7 @@ import { findFxmlMemberLocation, FxmlCodeLensProvider } from '../fxmlCodeLensPro
 import { FxmlDefinitionProvider } from '../fxmlDefinitionProvider';
 import { FxmlDocumentSymbolProvider } from '../fxmlDocumentSymbolProvider';
 import { collectFxmlDiagnostics } from '../fxmlDiagnostics';
+import { FxmlCodeActionProvider } from '../fxmlCodeActionProvider';
 import { FxmlFormattingEditProvider } from '../fxmlFormatter';
 import { FxmlLinkedEditingRangeProvider } from '../fxmlLinkedEditingRangeProvider';
 import { FxmlFoldingRangeProvider } from '../fxmlFoldingRangeProvider';
@@ -1446,6 +1447,269 @@ suite('Extension Test Suite', () => {
 
                 const updatedDiagnostics = await waitForDiagnostics(fxmlDocument.uri, diagnostics => diagnostics.length === 0);
                 assert.strictEqual(updatedDiagnostics.length, 0);
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should generate a missing controller field quick fix from fx:id', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-code-action-field-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(resourceDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(resourceDir, 'Main.fxml');
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'public class MainController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?import javafx.scene.control.Button?>',
+                '',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="loginButton" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const diagnostics = await collectFxmlDiagnostics(fxmlDocument, new vscode.CancellationTokenSource().token);
+                const missingField = diagnostics.find(diagnostic => diagnostic.code === 'missing-fx-id-field');
+                assert.ok(missingField);
+
+                const codeActions = await new FxmlCodeActionProvider().provideCodeActions(
+                    fxmlDocument,
+                    missingField!.range,
+                    { diagnostics: [missingField!], only: vscode.CodeActionKind.QuickFix, triggerKind: vscode.CodeActionTriggerKind.Invoke },
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.strictEqual(codeActions.length, 1);
+                assert.strictEqual(codeActions[0].kind?.value, vscode.CodeActionKind.QuickFix.value);
+                assert.ok(codeActions[0].edit);
+
+                await vscode.workspace.applyEdit(codeActions[0].edit!);
+
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(controllerPath));
+                assert.strictEqual(controllerDocument.getText(), [
+                    'package com.example;',
+                    '',
+                    'import javafx.fxml.FXML;',
+                    'import javafx.scene.control.Button;',
+                    '',
+                    'public class MainController {',
+                    '    @FXML',
+                    '    private Button loginButton;',
+                    '}',
+                ].join('\n'));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should generate a missing controller event handler quick fix from onAction', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-code-action-handler-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(resourceDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(resourceDir, 'Main.fxml');
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'public class MainController {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button onAction="#handleLogin" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const diagnostics = await collectFxmlDiagnostics(fxmlDocument, new vscode.CancellationTokenSource().token);
+                const missingHandler = diagnostics.find(diagnostic => diagnostic.code === 'missing-event-handler');
+                assert.ok(missingHandler);
+
+                const codeActions = await new FxmlCodeActionProvider().provideCodeActions(
+                    fxmlDocument,
+                    missingHandler!.range,
+                    { diagnostics: [missingHandler!], only: vscode.CodeActionKind.QuickFix, triggerKind: vscode.CodeActionTriggerKind.Invoke },
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.strictEqual(codeActions.length, 1);
+                assert.strictEqual(codeActions[0].kind?.value, vscode.CodeActionKind.QuickFix.value);
+                assert.ok(codeActions[0].edit);
+
+                await vscode.workspace.applyEdit(codeActions[0].edit!);
+
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(controllerPath));
+                assert.strictEqual(controllerDocument.getText(), [
+                    'package com.example;',
+                    '',
+                    'import javafx.event.ActionEvent;',
+                    'import javafx.fxml.FXML;',
+                    '',
+                    'public class MainController {',
+                    '    @FXML',
+                    '    private void handleLogin(ActionEvent event) {',
+                    '    }',
+                    '}',
+                ].join('\n'));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should insert generated controller fields before existing methods', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-code-action-field-order-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(resourceDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(resourceDir, 'Main.fxml');
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                'import javafx.scene.control.Label;',
+                '',
+                'public class MainController {',
+                '    @FXML',
+                '    private Label statusLabel;',
+                '',
+                '    @FXML',
+                '    private void initialize() {',
+                '    }',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?import javafx.scene.control.Button?>',
+                '',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="loginButton" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const diagnostics = await collectFxmlDiagnostics(fxmlDocument, new vscode.CancellationTokenSource().token);
+                const missingField = diagnostics.find(diagnostic => diagnostic.code === 'missing-fx-id-field');
+                assert.ok(missingField);
+
+                const codeActions = await new FxmlCodeActionProvider().provideCodeActions(
+                    fxmlDocument,
+                    missingField!.range,
+                    { diagnostics: [missingField!], only: vscode.CodeActionKind.QuickFix, triggerKind: vscode.CodeActionTriggerKind.Invoke },
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.strictEqual(codeActions.length, 1);
+                assert.ok(codeActions[0].edit);
+
+                await vscode.workspace.applyEdit(codeActions[0].edit!);
+
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(controllerPath));
+                assert.strictEqual(controllerDocument.getText(), [
+                    'package com.example;',
+                    '',
+                    'import javafx.fxml.FXML;',
+                    'import javafx.scene.control.Label;',
+                    'import javafx.scene.control.Button;',
+                    '',
+                    'public class MainController {',
+                    '    @FXML',
+                    '    private Label statusLabel;',
+                    '    @FXML',
+                    '    private Button loginButton;',
+                    '',
+                    '    @FXML',
+                    '    private void initialize() {',
+                    '    }',
+                    '}',
+                ].join('\n'));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should insert generated controller fields before top-level nested types', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fxml-code-action-field-nested-type-'));
+        try {
+            const javaDir = path.join(tempDir, 'src', 'main', 'java', 'com', 'example');
+            const resourceDir = path.join(tempDir, 'src', 'main', 'resources', 'com', 'example');
+            await fs.mkdir(javaDir, { recursive: true });
+            await fs.mkdir(resourceDir, { recursive: true });
+
+            const controllerPath = path.join(javaDir, 'MainController.java');
+            const fxmlPath = path.join(resourceDir, 'Main.fxml');
+            await fs.writeFile(controllerPath, [
+                'package com.example;',
+                '',
+                'import javafx.fxml.FXML;',
+                '',
+                'public class MainController {',
+                '    private static final class ViewState {',
+                '    }',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, [
+                '<?import javafx.scene.control.Button?>',
+                '',
+                '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MainController">',
+                '  <Button fx:id="loginButton" />',
+                '</VBox>',
+            ].join('\n'));
+
+            await withMockFindFiles([controllerPath], async () => {
+                const fxmlDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const diagnostics = await collectFxmlDiagnostics(fxmlDocument, new vscode.CancellationTokenSource().token);
+                const missingField = diagnostics.find(diagnostic => diagnostic.code === 'missing-fx-id-field');
+                assert.ok(missingField);
+
+                const codeActions = await new FxmlCodeActionProvider().provideCodeActions(
+                    fxmlDocument,
+                    missingField!.range,
+                    { diagnostics: [missingField!], only: vscode.CodeActionKind.QuickFix, triggerKind: vscode.CodeActionTriggerKind.Invoke },
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.strictEqual(codeActions.length, 1);
+                assert.ok(codeActions[0].edit);
+
+                await vscode.workspace.applyEdit(codeActions[0].edit!);
+
+                const controllerDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(controllerPath));
+                assert.strictEqual(controllerDocument.getText(), [
+                    'package com.example;',
+                    '',
+                    'import javafx.fxml.FXML;',
+                    'import javafx.scene.control.Button;',
+                    '',
+                    'public class MainController {',
+                    '    @FXML',
+                    '    private Button loginButton;',
+                    '    private static final class ViewState {',
+                    '    }',
+                    '}',
+                ].join('\n'));
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });

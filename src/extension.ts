@@ -14,6 +14,7 @@ import { FxmlReferenceProvider } from './fxmlReferenceProvider';
 import { WorkspaceSymbolProvider } from './workspaceSymbolProvider';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './javafxCssProvider';
 import { registerJavaClassCache } from './javaControllerResolver';
+import { FxmlCodeActionProvider } from './fxmlCodeActionProvider';
 
 /**
  * Extension activation
@@ -147,6 +148,13 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerFoldingRangeProvider(
             fxmlFoldingSelector,
             new FxmlFoldingRangeProvider()
+        )
+    );
+    context.subscriptions.push(
+        vscode.languages.registerCodeActionsProvider(
+            fxmlSelector,
+            new FxmlCodeActionProvider(),
+            { providedCodeActionKinds: FxmlCodeActionProvider.providedCodeActionKinds }
         )
     );
 
