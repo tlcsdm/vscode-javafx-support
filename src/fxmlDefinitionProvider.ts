@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { findWorkspaceCssClassDefinitions, getStyleClassAtPosition } from './fxmlCssClassSupport';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
 import { findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
 
@@ -15,6 +16,7 @@ const resourceAttributePattern = String.raw`\b[\w:.-]+\s*=\s*(["'])(@[^"']+)\1`;
  * - onAction="#handleClick" → jumps to @FXML annotated method in the controller
  * - fx:include source="Child.fxml" → opens the included FXML file
  * - image="@image.png" / stylesheets="@style.css" → opens the referenced resource file
+ * - styleClass="my-button" → opens matching CSS class selectors in workspace stylesheets
  */
 export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
     async provideDefinition(
@@ -27,6 +29,12 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         const line = document.lineAt(position).text;
+
+        const styleClassMatch = getStyleClassAtPosition(document, position);
+        if (styleClassMatch) {
+            const definitions = await findWorkspaceCssClassDefinitions(styleClassMatch.className, token);
+            return definitions.length > 0 ? definitions : undefined;
+        }
 
         const includeSourceMatch = this.getFxIncludeSourceAtPosition(line, position.character);
         if (includeSourceMatch) {

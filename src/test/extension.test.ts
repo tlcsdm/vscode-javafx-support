@@ -207,6 +207,51 @@ suite('Extension Test Suite', () => {
         }
     });
 
+    test('Should navigate FXML styleClass values to matching CSS class selectors', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-style-class-definition-'));
+        try {
+            const cssPath = path.join(tempDir, 'styles', 'main.css');
+            const fxmlPath = path.join(tempDir, 'views', 'Main.fxml');
+            await fs.mkdir(path.dirname(cssPath), { recursive: true });
+            await fs.mkdir(path.dirname(fxmlPath), { recursive: true });
+
+            await fs.writeFile(cssPath, [
+                '.toolbar {',
+                '}',
+                '.primary-button:hover,',
+                '.secondary-button {',
+                '}',
+            ].join('\n'));
+            await fs.writeFile(fxmlPath, '<Button styleClass="toolbar primary-button" />');
+
+            await withMockFindFiles([cssPath], async () => {
+                const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
+                const line = document.lineAt(0).text;
+                const definitions = await new FxmlDefinitionProvider().provideDefinition(
+                    document,
+                    new vscode.Position(0, line.indexOf('primary-button') + 2),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(Array.isArray(definitions));
+                assert.strictEqual(definitions.length, 1);
+                assertFsPathEqual(definitions[0].uri.fsPath, cssPath);
+                assert.deepStrictEqual(definitions[0].range.start, new vscode.Position(2, 1));
+
+                assert.strictEqual(
+                    await new FxmlDefinitionProvider().provideDefinition(
+                        createMockFxmlDocument('<Button styleClass="missing-class" />'),
+                        new vscode.Position(0, '<Button styleClass="'.length + 2),
+                        new vscode.CancellationTokenSource().token
+                    ),
+                    undefined
+                );
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('Should navigate inherited @FXML controller members', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-inherited-'));
         try {
@@ -374,6 +419,47 @@ suite('Extension Test Suite', () => {
                 );
                 assert.ok(controllerReference);
                 assert.deepStrictEqual(controllerReference!.range.start, new vscode.Position(7, 19));
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('Should find FXML styleClass references from CSS class selectors', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-style-class-references-'));
+        try {
+            const cssPath = path.join(tempDir, 'styles', 'main.css');
+            const firstFxmlPath = path.join(tempDir, 'views', 'Main.fxml');
+            const secondFxmlPath = path.join(tempDir, 'views', 'Dialog.fxml');
+            await fs.mkdir(path.dirname(cssPath), { recursive: true });
+            await fs.mkdir(path.dirname(firstFxmlPath), { recursive: true });
+
+            await fs.writeFile(cssPath, '.primary-button { -fx-font-weight: bold; }');
+            await fs.writeFile(firstFxmlPath, '<Button styleClass="toolbar primary-button" />');
+            await fs.writeFile(secondFxmlPath, '<Label styleClass="primary-button secondary-label" />');
+
+            await withMockFindFiles([firstFxmlPath, secondFxmlPath], async () => {
+                const document = await vscode.workspace.openTextDocument(vscode.Uri.file(cssPath));
+                const line = document.lineAt(0).text;
+                const references = await new FxmlReferenceProvider().provideReferences(
+                    document,
+                    new vscode.Position(0, line.indexOf('primary-button') + 2),
+                    { includeDeclaration: false },
+                    new vscode.CancellationTokenSource().token
+                );
+
+                assert.ok(references);
+                assert.strictEqual(references.length, 2);
+                assert.deepStrictEqual(
+                    references.map(reference => [
+                        path.basename(reference.uri.fsPath),
+                        reference.range.start,
+                    ]),
+                    [
+                        ['Main.fxml', new vscode.Position(0, 28)],
+                        ['Dialog.fxml', new vscode.Position(0, 19)],
+                    ]
+                );
             });
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
@@ -945,6 +1031,58 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(center?.insertText, ' center;');
         assert.ok(center?.range instanceof vscode.Range);
         assert.strictEqual(getRangeText(valueDocument, center!.range as vscode.Range), 'c');
+    });
+
+    test('Should provide workspace CSS class completions inside FXML styleClass attributes', async () => {
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-style-class-completion-'));
+        try {
+            const firstCssPath = path.join(tempDir, 'styles', 'main.css');
+            const secondCssPath = path.join(tempDir, 'styles', 'dialog.css');
+            await fs.mkdir(path.dirname(firstCssPath), { recursive: true });
+
+            await fs.writeFile(firstCssPath, [
+                '.toolbar { }',
+                '.primary-button { }',
+            ].join('\n'));
+            await fs.writeFile(secondCssPath, [
+                '.primary-button { }',
+                '.secondary-label { }',
+            ].join('\n'));
+
+            await withMockFindFiles([firstCssPath, secondCssPath], async () => {
+                const provider = new JavafxCssCompletionProvider();
+
+                const emptyDocument = createMockFxmlDocument('<Button styleClass=""/>');
+                const emptyLine = emptyDocument.lineAt(0).text;
+                const emptyCompletions = await provider.provideCompletionItems(
+                    emptyDocument,
+                    new vscode.Position(0, emptyLine.indexOf('styleClass="') + 'styleClass="'.length),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                const emptyItems = getCompletionItems(emptyCompletions);
+                assert.deepStrictEqual(
+                    emptyItems.map(getCompletionLabel),
+                    ['primary-button', 'secondary-label', 'toolbar']
+                );
+
+                const partialDocument = createMockFxmlDocument('<Button styleClass="toolbar pri"/>');
+                const partialLine = partialDocument.lineAt(0).text;
+                const partialCompletions = await provider.provideCompletionItems(
+                    partialDocument,
+                    new vscode.Position(0, partialLine.indexOf('pri') + 'pri'.length),
+                    new vscode.CancellationTokenSource().token
+                );
+
+                const primaryButton = getCompletionItems(partialCompletions).find(item => getCompletionLabel(item) === 'primary-button');
+                assert.ok(primaryButton);
+                assert.strictEqual(primaryButton?.insertText, 'primary-button');
+                assert.ok(primaryButton?.range instanceof vscode.Range);
+                assert.strictEqual(getRangeText(partialDocument, primaryButton!.range as vscode.Range), 'pri');
+            });
+        } finally {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('Should provide JavaFX CSS hovers for -fx- properties', async () => {
