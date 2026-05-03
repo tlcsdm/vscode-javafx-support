@@ -3,9 +3,10 @@ import { CSS_GLOB, EXCLUDE_GLOB, FXML_GLOB } from './constants';
 import { processInBatches } from './utils';
 
 const CLASS_SCAN_BATCH_SIZE = 20;
-const CSS_CLASS_SELECTOR_PATTERN = /(^|[^A-Za-z0-9_-])\.([A-Za-z_][\w-]*)/gm;
+const STYLE_CLASS_NAME_PATTERN = '[A-Za-z_][A-Za-z0-9_-]*';
+const CSS_CLASS_SELECTOR_PATTERN = new RegExp(`(^|[^A-Za-z0-9_-])\\.(${STYLE_CLASS_NAME_PATTERN})`, 'gm');
 const STYLE_CLASS_ATTRIBUTE_PATTERN = /\bstyleClass\s*=\s*(["'])([^"']*)\1/gm;
-const STYLE_CLASS_TOKEN_PATTERN = /[A-Za-z_][\w-]*/g;
+const STYLE_CLASS_TOKEN_PATTERN = new RegExp(STYLE_CLASS_NAME_PATTERN, 'g');
 const IGNORED_STYLE_CLASS_DIRECTORY_SEGMENTS = new Set([
     'bin',
     'build',
