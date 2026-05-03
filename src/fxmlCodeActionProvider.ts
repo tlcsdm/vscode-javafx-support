@@ -159,7 +159,7 @@ function getDiagnosticCode(diagnostic: vscode.Diagnostic): string | undefined {
         return String(diagnostic.code);
     }
 
-    return diagnostic.code?.value;
+    return diagnostic.code ? String(diagnostic.code.value) : undefined;
 }
 
 function resolveFieldType(
@@ -251,12 +251,13 @@ function updateControllerSource(
     const source = document.getText();
     const eol = document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
     const lines = source.split(/\r?\n/);
+
+    addImports(lines, importsToAdd);
+
     const classClosingLine = findClassClosingLine(lines);
     if (classClosingLine < 0) {
         return undefined;
     }
-
-    addImports(lines, importsToAdd);
 
     const classDeclarationLine = findClassDeclarationLine(lines, classClosingLine);
     const hasExistingMembers = lines.slice(classDeclarationLine + 1, classClosingLine).some(line => line.trim() !== '');
