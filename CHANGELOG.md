@@ -1,6 +1,6 @@
 # Change Log
 
-## [unreleased]
+## [1.0.6] - 2026-05-04
 
 ### Added
 - Add FXML/CSS `styleClass` linkage so FXML `styleClass` values can jump to CSS selectors, CSS selectors can find FXML usages, and FXML `styleClass` attributes complete workspace CSS class names
