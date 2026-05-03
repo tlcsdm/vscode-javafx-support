@@ -334,7 +334,7 @@ function findClassClosingLine(lines: readonly string[]): number {
 }
 
 function findClassDeclarationLine(lines: readonly string[], beforeLine: number): number {
-    for (let index = beforeLine - 1; index >= 0; index--) {
+    for (let index = 0; index < beforeLine; index++) {
         if (/\bclass\b/.test(lines[index])) {
             return index;
         }
@@ -350,27 +350,82 @@ function findClassDeclarationLine(lines: readonly string[], beforeLine: number):
  * class closing brace.
  */
 function findFieldInsertLine(lines: readonly string[], classDeclarationLine: number, classClosingLine: number): number {
-    for (let index = classDeclarationLine + 1; index < classClosingLine; index++) {
-        if (!isMethodDeclarationLine(lines[index])) {
-            continue;
-        }
-
-        let methodStartLine = index;
-        while (methodStartLine > classDeclarationLine + 1 && lines[methodStartLine - 1].trim().startsWith('@')) {
-            methodStartLine--;
-        }
-        while (methodStartLine > classDeclarationLine + 1 && lines[methodStartLine - 1].trim() === '') {
-            methodStartLine--;
-        }
-        return methodStartLine;
+    const classBodyStartLine = findClassBodyStartLine(lines, classDeclarationLine, classClosingLine);
+    if (classBodyStartLine < 0) {
+        return classClosingLine;
     }
 
-    return classClosingLine;
+    let depth = 1;
+    let lastFieldInsertLine: number | undefined;
+
+    for (let index = classBodyStartLine + 1; index < classClosingLine; index++) {
+        const line = lines[index];
+        if (depth === 1) {
+            if (isFieldDeclarationLine(line)) {
+                lastFieldInsertLine = index + 1;
+            } else if (isTopLevelFieldInsertionBoundary(line)) {
+                return lastFieldInsertLine ?? classBodyStartLine + 1;
+            }
+        }
+
+        depth += countBraceDelta(line);
+    }
+
+    return lastFieldInsertLine ?? classClosingLine;
+}
+
+function findClassBodyStartLine(lines: readonly string[], classDeclarationLine: number, classClosingLine: number): number {
+    for (let index = classDeclarationLine; index < classClosingLine; index++) {
+        if (lines[index].includes('{')) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+function isFieldDeclarationLine(line: string): boolean {
+    const fieldName = /(\w+)\s*(?=[;=])/.exec(line)?.[1];
+    return !!fieldName && !!getFieldDeclarationMatch(line, fieldName);
+}
+
+function isTopLevelFieldInsertionBoundary(line: string): boolean {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith('@') || isCommentLine(trimmedLine)) {
+        return false;
+    }
+
+    return isMethodDeclarationLine(line)
+        || isInitializerBlockLine(trimmedLine)
+        || /\b(?:class|interface|enum|record)\b/.test(trimmedLine);
 }
 
 function isMethodDeclarationLine(line: string): boolean {
     const methodName = /(\w+)\s*\(/.exec(line)?.[1];
     return !!methodName && !!getMethodDeclarationMatch(line, methodName);
+}
+
+function isInitializerBlockLine(line: string): boolean {
+    return line === '{' || /^static\s*\{/.test(line);
+}
+
+function isCommentLine(line: string): boolean {
+    return line.startsWith('//')
+        || line.startsWith('/*')
+        || line.startsWith('*')
+        || line.startsWith('*/');
+}
+
+function countBraceDelta(line: string): number {
+    let delta = 0;
+    for (const character of line) {
+        if (character === '{') {
+            delta++;
+        } else if (character === '}') {
+            delta--;
+        }
+    }
+    return delta;
 }
 
 function findLastLineIndex(lines: readonly string[], predicate: (line: string) => boolean): number {
