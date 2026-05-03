@@ -334,20 +334,27 @@ function findClassClosingLine(lines: readonly string[]): number {
 }
 
 function findClassDeclarationLine(lines: readonly string[], beforeLine: number): number {
+    let inBlockComment = false;
+    let depth = 0;
+
     for (let index = 0; index < beforeLine; index++) {
-        if (/\bclass\b/.test(lines[index])) {
+        const sanitizedLine = stripStringsAndComments(lines[index], inBlockComment);
+        if (depth === 0 && /\bclass\b/.test(sanitizedLine.text)) {
             return index;
         }
+
+        const braceInfo = getBraceInfo(lines[index], inBlockComment);
+        depth += braceInfo.delta;
+        inBlockComment = braceInfo.inBlockComment;
     }
 
     return 0;
 }
 
 /**
- * Find the best insertion line for a new controller field by placing it before the
- * first method block (including its leading annotations and separator blank lines).
- * If the class does not contain any methods, fall back to inserting just before the
- * class closing brace.
+ * Find the best insertion line for a new controller field inside the outer controller
+ * class body. Fields stay grouped with existing top-level fields and otherwise get
+ * inserted before the first top-level method, initializer, or nested type.
  */
 function findFieldInsertLine(lines: readonly string[], classDeclarationLine: number, classClosingLine: number): number {
     const classBodyStartLine = findClassBodyStartLine(lines, classDeclarationLine, classClosingLine);
@@ -356,6 +363,7 @@ function findFieldInsertLine(lines: readonly string[], classDeclarationLine: num
     }
 
     let depth = 1;
+    let inBlockComment = false;
     let lastFieldInsertLine: number | undefined;
 
     for (let index = classBodyStartLine + 1; index < classClosingLine; index++) {
@@ -368,7 +376,9 @@ function findFieldInsertLine(lines: readonly string[], classDeclarationLine: num
             }
         }
 
-        depth += countBraceDelta(line);
+        const braceInfo = getBraceInfo(line, inBlockComment);
+        depth += braceInfo.delta;
+        inBlockComment = braceInfo.inBlockComment;
     }
 
     return lastFieldInsertLine ?? classClosingLine;
@@ -385,8 +395,13 @@ function findClassBodyStartLine(lines: readonly string[], classDeclarationLine: 
 }
 
 function isFieldDeclarationLine(line: string): boolean {
-    const fieldName = /(\w+)\s*(?=[;=])/.exec(line)?.[1];
-    return !!fieldName && !!getFieldDeclarationMatch(line, fieldName);
+    const sanitizedLine = stripStringsAndComments(line, false).text.trim();
+    if (!sanitizedLine.endsWith(';')) {
+        return false;
+    }
+
+    const fieldName = /(\w+)\s*(?=[;=])/.exec(sanitizedLine)?.[1];
+    return !!fieldName && !!getFieldDeclarationMatch(sanitizedLine, fieldName);
 }
 
 function isTopLevelFieldInsertionBoundary(line: string): boolean {
@@ -410,24 +425,79 @@ function isInitializerBlockLine(line: string): boolean {
 }
 
 function isCommentLine(line: string): boolean {
-    return line.startsWith('//')
-        || line.startsWith('/*')
-        || line.startsWith('*')
-        || line.startsWith('*/');
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+        return false;
+    }
+
+    return trimmedLine.startsWith('//')
+        || trimmedLine.startsWith('/*')
+        || trimmedLine.startsWith('*')
+        || trimmedLine.startsWith('*/');
 }
 
-function countBraceDelta(line: string): number {
+function getBraceInfo(line: string, inBlockComment: boolean): { delta: number; inBlockComment: boolean } {
+    const sanitizedLine = stripStringsAndComments(line, inBlockComment);
     let delta = 0;
-    for (const character of line) {
+
+    for (const character of sanitizedLine.text) {
         if (character === '{') {
             delta++;
         } else if (character === '}') {
             delta--;
         }
     }
-    return delta;
+
+    return { delta, inBlockComment: sanitizedLine.inBlockComment };
 }
 
+function stripStringsAndComments(line: string, inBlockComment: boolean): { text: string; inBlockComment: boolean } {
+    let result = '';
+    let inString: '"' | '\'' | undefined;
+
+    for (let index = 0; index < line.length; index++) {
+        const character = line[index];
+        const nextCharacter = line[index + 1];
+
+        if (inBlockComment) {
+            if (character === '*' && nextCharacter === '/') {
+                inBlockComment = false;
+                index++;
+            }
+            continue;
+        }
+
+        if (inString) {
+            if (character === '\\') {
+                index++;
+                continue;
+            }
+            if (character === inString) {
+                inString = undefined;
+            }
+            continue;
+        }
+
+        if (character === '/' && nextCharacter === '/') {
+            break;
+        }
+
+        if (character === '/' && nextCharacter === '*') {
+            inBlockComment = true;
+            index++;
+            continue;
+        }
+
+        if (character === '"' || character === '\'') {
+            inString = character;
+            continue;
+        }
+
+        result += character;
+    }
+
+    return { text: result, inBlockComment };
+}
 function findLastLineIndex(lines: readonly string[], predicate: (line: string) => boolean): number {
     for (let index = lines.length - 1; index >= 0; index--) {
         if (predicate(lines[index])) {
