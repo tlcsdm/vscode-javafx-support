@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { findJavaClass, getSuperclassName } from './javaControllerResolver';
-import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
+import { findJavaClass, getSuperclassName } from '../java/javaControllerResolver';
+import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from '../core/utils';
 
 interface HoverTarget {
     kind: 'controller' | 'field' | 'method';

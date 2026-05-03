@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { CSS_GLOB, EXCLUDE_GLOB, FXML_GLOB } from './constants';
-import { processInBatches } from './utils';
+import { CSS_GLOB, EXCLUDE_GLOB, FXML_GLOB } from '../core/constants';
+import { processInBatches } from '../core/utils';
 
 const CLASS_SCAN_BATCH_SIZE = 20;
 const STYLE_CLASS_NAME_PATTERN = '[A-Za-z_][A-Za-z0-9_-]*';

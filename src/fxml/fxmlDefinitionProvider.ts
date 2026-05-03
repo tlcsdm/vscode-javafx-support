@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { findWorkspaceCssClassDefinitions, getStyleClassAtPosition } from './fxmlCssClassSupport';
-import { findJavaClass, getSuperclassName } from './javaControllerResolver';
-import { findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
+import { findWorkspaceCssClassDefinitions, getStyleClassAtPosition } from '../css/fxmlCssClassSupport';
+import { findJavaClass, getSuperclassName } from '../java/javaControllerResolver';
+import { findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from '../core/utils';
 
 // Matches quoted FXML attribute values that resolve resources relative to the current document,
 // for example image="@images/logo.png" or stylesheets="@styles/main.css".

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { clearJavaClassCache, findJavaClass, getSuperclassName, type JavaClassInfo } from './javaControllerResolver';
-import { getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
+import { clearJavaClassCache, findJavaClass, getSuperclassName, type JavaClassInfo } from '../java/javaControllerResolver';
+import { getFieldDeclarationMatch, getMethodDeclarationMatch } from '../core/utils';
 
 const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
