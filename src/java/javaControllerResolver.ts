@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { EXCLUDE_GLOB, JAVA_GLOB } from './constants';
-import { escapeRegex } from './utils';
+import { EXCLUDE_GLOB, JAVA_GLOB } from '../core/constants';
+import { escapeRegex } from '../core/utils';
 
 export interface JavaClassInfo {
     document: vscode.TextDocument;

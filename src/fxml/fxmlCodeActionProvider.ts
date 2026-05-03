@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { findJavaClass } from './javaControllerResolver';
-import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
+import { findJavaClass } from '../java/javaControllerResolver';
+import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from '../core/utils';
 
 const MISSING_FX_ID_FIELD_CODE = 'missing-fx-id-field';
 const MISSING_EVENT_HANDLER_CODE = 'missing-event-handler';

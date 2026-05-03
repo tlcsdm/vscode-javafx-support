@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import {
     findWorkspaceFxmlStyleClassReferences,
     getCssClassAtPosition,
-} from './fxmlCssClassSupport';
+} from '../css/fxmlCssClassSupport';
 import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
-import { escapeRegex } from './utils';
+import { escapeRegex } from '../core/utils';
 
 /**
  * Provides "Find All References" from FXML fx:id declarations.

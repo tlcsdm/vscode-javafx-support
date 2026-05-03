@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { getFxmlFilesForMember } from './fxmlControllerCache';
+import { getFxmlFilesForMember } from '../fxml/fxmlControllerCache';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
-import { escapeRegex } from './utils';
+import { escapeRegex } from '../core/utils';
 
 /**
  * Provides "Go to Definition" from Java controller classes to FXML files.

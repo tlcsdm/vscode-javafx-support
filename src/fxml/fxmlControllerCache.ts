@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { EXCLUDE_GLOB, FXML_GLOB } from './constants';
-import { classExtends } from './javaControllerResolver';
-import { isFxmlDocument, processInBatches } from './utils';
+import { EXCLUDE_GLOB, FXML_GLOB } from '../core/constants';
+import { classExtends } from '../java/javaControllerResolver';
+import { isFxmlDocument, processInBatches } from '../core/utils';
 
 type CachedFxmlEntry = {
     controllerClassName: string;

@@ -1,20 +1,20 @@
 import * as vscode from 'vscode';
-import { openInSceneBuilder, setSceneBuilderPath } from './sceneBuilder';
-import { FxmlDefinitionProvider } from './fxmlDefinitionProvider';
-import { ControllerDefinitionProvider } from './controllerDefinitionProvider';
-import { FxmlFormattingEditProvider } from './fxmlFormatter';
-import { FxmlCodeLensProvider, goToFxmlCommand } from './fxmlCodeLensProvider';
-import { FxmlDocumentSymbolProvider } from './fxmlDocumentSymbolProvider';
-import { FxmlLinkedEditingRangeProvider } from './fxmlLinkedEditingRangeProvider';
-import { FxmlFoldingRangeProvider } from './fxmlFoldingRangeProvider';
-import { FxmlDiagnosticProvider } from './fxmlDiagnostics';
-import { registerFxmlControllerCache } from './fxmlControllerCache';
-import { FxmlHoverProvider } from './fxmlHoverProvider';
-import { FxmlReferenceProvider } from './fxmlReferenceProvider';
-import { WorkspaceSymbolProvider } from './workspaceSymbolProvider';
-import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './javafxCssProvider';
-import { registerJavaClassCache } from './javaControllerResolver';
-import { FxmlCodeActionProvider } from './fxmlCodeActionProvider';
+import { openInSceneBuilder, setSceneBuilderPath } from './scene-builder/sceneBuilder';
+import { FxmlDefinitionProvider } from './fxml/fxmlDefinitionProvider';
+import { ControllerDefinitionProvider } from './java/controllerDefinitionProvider';
+import { FxmlFormattingEditProvider } from './fxml/fxmlFormatter';
+import { FxmlCodeLensProvider, goToFxmlCommand } from './java/fxmlCodeLensProvider';
+import { FxmlDocumentSymbolProvider } from './fxml/fxmlDocumentSymbolProvider';
+import { FxmlLinkedEditingRangeProvider } from './fxml/fxmlLinkedEditingRangeProvider';
+import { FxmlFoldingRangeProvider } from './fxml/fxmlFoldingRangeProvider';
+import { FxmlDiagnosticProvider } from './fxml/fxmlDiagnostics';
+import { registerFxmlControllerCache } from './fxml/fxmlControllerCache';
+import { FxmlHoverProvider } from './fxml/fxmlHoverProvider';
+import { FxmlReferenceProvider } from './fxml/fxmlReferenceProvider';
+import { WorkspaceSymbolProvider } from './java/workspaceSymbolProvider';
+import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './css/javafxCssProvider';
+import { registerJavaClassCache } from './java/javaControllerResolver';
+import { FxmlCodeActionProvider } from './fxml/fxmlCodeActionProvider';
 
 /**
  * Extension activation

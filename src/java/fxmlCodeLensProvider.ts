@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { getFxmlFilesForMember } from './fxmlControllerCache';
+import { getFxmlFilesForMember } from '../fxml/fxmlControllerCache';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
-import { escapeRegex } from './utils';
+import { escapeRegex } from '../core/utils';
 
 const METHOD_NAME_EXCLUDED_KEYWORDS = new Set([
     'if', 'for', 'while', 'switch', 'catch', 'new', 'return', 'class', 'interface'

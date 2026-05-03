@@ -1,8 +1,8 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { EXCLUDE_GLOB, FXML_GLOB, JAVA_GLOB } from './constants';
+import { EXCLUDE_GLOB, FXML_GLOB, JAVA_GLOB } from '../core/constants';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
-import { isFxmlDocument, isJavaDocument, processInBatches } from './utils';
+import { isFxmlDocument, isJavaDocument, processInBatches } from '../core/utils';
 
 const IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS = new Set([
     'bin',
