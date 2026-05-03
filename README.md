@@ -10,6 +10,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 📐 **Formatter** - You can use an XML formatter specifically designed for FXML
 - ✏️ **Linked Editing** - Renaming an opening FXML tag also updates the matching closing tag
 - 🚨 **FXML Diagnostics** - Surface missing controller classes and duplicate `fx:id` values directly in the Problems panel
+- 💡 **FXML Quick Fixes** - Use the lightbulb on missing `fx:id` fields and missing `onAction` handlers to generate matching `@FXML` controller members
 - 🔗 **FXML → Controller & Resource Navigation** - Ctrl+Click on `fx:controller`, `onAction`, `fx:id`, `@image.png`, or `@style.css` in FXML to jump to the corresponding controller code or referenced resource file
 - 🔗 **Controller → FXML Navigation** - Ctrl+Click on `@FXML` annotated variables or methods in the Controller class to jump to the corresponding location in the FXML file
 - 🔎 **Find All References** - Press `Shift+F12` on an FXML `fx:id` to find `$fxId` usages in the current FXML file together with the matching controller field declaration
@@ -75,6 +76,11 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - `fx:id` values without matching controller fields are reported as warnings
 - Missing controller event handlers such as `#handleClick` are reported as errors
 - Duplicate `fx:id` values in the same FXML file are reported as errors
+
+### FXML Quick Fixes
+
+- Use `Ctrl+.` / `Cmd+.` on a missing `fx:id` warning to generate `@FXML private <Type> <fxId>;` in the controller
+- Use `Ctrl+.` / `Cmd+.` on a missing `onAction` handler error to generate `@FXML private void <handler>(ActionEvent event) {}` in the controller
 
 ### JavaFX CSS IntelliSense
 

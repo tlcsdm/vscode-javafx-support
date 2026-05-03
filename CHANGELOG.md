@@ -4,6 +4,7 @@
 
 ### Added
 - Add FXML/CSS `styleClass` linkage so FXML `styleClass` values can jump to CSS selectors, CSS selectors can find FXML usages, and FXML `styleClass` attributes complete workspace CSS class names
+- Add FXML quick fixes to generate missing controller `@FXML` fields from `fx:id` values and missing `onAction` handler methods
 
 ## [1.0.5] - 2026-05-03
 
