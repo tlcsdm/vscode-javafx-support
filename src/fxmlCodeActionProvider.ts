@@ -343,6 +343,12 @@ function findClassDeclarationLine(lines: readonly string[], beforeLine: number):
     return 0;
 }
 
+/**
+ * Find the best insertion line for a new controller field by placing it before the
+ * first method block (including its leading annotations and separator blank lines).
+ * If the class does not contain any methods, fall back to inserting just before the
+ * class closing brace.
+ */
 function findFieldInsertLine(lines: readonly string[], classDeclarationLine: number, classClosingLine: number): number {
     for (let index = classDeclarationLine + 1; index < classClosingLine; index++) {
         if (!isMethodDeclarationLine(lines[index])) {
