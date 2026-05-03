@@ -16,7 +16,8 @@ import { FxmlHoverProvider } from '../fxmlHoverProvider';
 import { FxmlReferenceProvider } from '../fxmlReferenceProvider';
 import { JAVA_FX_CSS_PROPERTY_DEFINITIONS } from '../javafxCssData';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from '../javafxCssProvider';
-import { WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
+import { resetJavaClassCacheForTests } from '../javaControllerResolver';
+import { resetWorkspaceSymbolProvidersForTests, WorkspaceSymbolProvider } from '../workspaceSymbolProvider';
 
 const FXML_CONTROLLER_DIAGNOSTICS_TEMP_PREFIX = 'fxml-controller-diagnostics-';
 const FXML_CONTROLLER_REFRESH_TEMP_PREFIX = 'fxml-controller-refresh-';
@@ -25,6 +26,16 @@ const EXPECTED_JAVAFX_CSS_PROPERTY_COUNT = 188;
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
+
+    setup(() => {
+        resetJavaClassCacheForTests();
+        resetWorkspaceSymbolProvidersForTests();
+    });
+
+    teardown(() => {
+        resetJavaClassCacheForTests();
+        resetWorkspaceSymbolProvidersForTests();
+    });
 
     test('Extension should be present', () => {
         assert.ok(vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support'));
@@ -287,7 +298,7 @@ suite('Extension Test Suite', () => {
                 assert.ok(codeLensToFxml instanceof vscode.Location);
                 assertFsPathEqual(codeLensToFxml.uri.fsPath, mainFxml);
                 assert.deepStrictEqual(codeLensToFxml.range.start, new vscode.Position(2, fxmlLine.indexOf('fx:id')));
-                assert.strictEqual(codeLensJavaLookups, 1, 'only FXML files containing the target member should trigger Java inheritance lookup');
+                assert.strictEqual(codeLensJavaLookups, 0, 'cached Java lookups should avoid repeated inheritance scans');
             }, pattern => {
                 if (trackCodeLensJavaLookups && pattern !== '**/*.fxml') {
                     codeLensJavaLookups++;
@@ -336,10 +347,11 @@ suite('Extension Test Suite', () => {
             await withMockFindFiles([controllerPath], async () => {
                 const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fxmlPath));
                 const fxIdLine = document.lineAt(2).text;
-                const references = await vscode.commands.executeCommand<vscode.Location[]>(
-                    'vscode.executeReferenceProvider',
-                    document.uri,
-                    new vscode.Position(2, fxIdLine.indexOf('submitBtn'))
+                const references = await new FxmlReferenceProvider().provideReferences(
+                    document,
+                    new vscode.Position(2, fxIdLine.indexOf('submitBtn')),
+                    { includeDeclaration: true },
+                    new vscode.CancellationTokenSource().token
                 );
 
                 assert.ok(references);
@@ -404,37 +416,42 @@ suite('Extension Test Suite', () => {
                 '</VBox>',
             ].join('\n'));
 
-            await withMockFindFiles([controllerPath, fxmlPath], async () => {
-                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-                    'vscode.executeWorkspaceSymbolProvider',
-                    'SUBMIT'
-                );
+            const provider = new WorkspaceSymbolProvider();
+            try {
+                await withMockFindFiles([controllerPath, fxmlPath], async () => {
+                    const symbols = await provider.provideWorkspaceSymbols(
+                        'SUBMIT',
+                        new vscode.CancellationTokenSource().token
+                    );
 
-                assert.ok(symbols);
+                    assert.ok(symbols);
 
-                const matchingSymbols = symbols!.filter(symbol =>
-                    ['Main.fxml', 'MainController.java'].includes(path.basename(symbol.location.uri.fsPath))
-                );
-                assert.strictEqual(matchingSymbols.length, 2);
+                    const matchingSymbols = symbols!.filter(symbol =>
+                        ['Main.fxml', 'MainController.java'].includes(path.basename(symbol.location.uri.fsPath))
+                    );
+                    assert.strictEqual(matchingSymbols.length, 2);
 
-                const javaSymbol = matchingSymbols.find(symbol =>
-                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(controllerPath)
-                );
-                assert.ok(javaSymbol);
-                assert.strictEqual(javaSymbol!.name, 'submitButton');
-                assert.strictEqual(javaSymbol!.kind, vscode.SymbolKind.Field);
-                assert.strictEqual(javaSymbol!.containerName, 'com.example.MainController');
-                assert.deepStrictEqual(javaSymbol!.location.range.start, new vscode.Position(7, 19));
+                    const javaSymbol = matchingSymbols.find(symbol =>
+                        normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(controllerPath)
+                    );
+                    assert.ok(javaSymbol);
+                    assert.strictEqual(javaSymbol!.name, 'submitButton');
+                    assert.strictEqual(javaSymbol!.kind, vscode.SymbolKind.Field);
+                    assert.strictEqual(javaSymbol!.containerName, 'com.example.MainController');
+                    assert.deepStrictEqual(javaSymbol!.location.range.start, new vscode.Position(7, 19));
 
-                const fxmlSymbol = matchingSymbols.find(symbol =>
-                    normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(fxmlPath)
-                );
-                assert.ok(fxmlSymbol);
-                assert.strictEqual(fxmlSymbol!.name, 'submitButton');
-                assert.strictEqual(fxmlSymbol!.kind, vscode.SymbolKind.Variable);
-                assert.strictEqual(fxmlSymbol!.containerName, 'Button');
-                assert.deepStrictEqual(fxmlSymbol!.location.range.start, new vscode.Position(3, 13));
-            });
+                    const fxmlSymbol = matchingSymbols.find(symbol =>
+                        normalizeFsPath(symbol.location.uri.fsPath) === normalizeFsPath(fxmlPath)
+                    );
+                    assert.ok(fxmlSymbol);
+                    assert.strictEqual(fxmlSymbol!.name, 'submitButton');
+                    assert.strictEqual(fxmlSymbol!.kind, vscode.SymbolKind.Variable);
+                    assert.strictEqual(fxmlSymbol!.containerName, 'Button');
+                    assert.deepStrictEqual(fxmlSymbol!.location.range.start, new vscode.Position(3, 13));
+                });
+            } finally {
+                provider.dispose();
+            }
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
@@ -486,28 +503,33 @@ suite('Extension Test Suite', () => {
                 '</VBox>',
             ].join('\n'));
 
-            await withMockFindFiles([sourceControllerPath, generatedControllerPath, fxmlPath], async () => {
-                const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-                    'vscode.executeWorkspaceSymbolProvider',
-                    'button'
-                );
+            const provider = new WorkspaceSymbolProvider();
+            try {
+                await withMockFindFiles([sourceControllerPath, generatedControllerPath, fxmlPath], async () => {
+                    const symbols = await provider.provideWorkspaceSymbols(
+                        'button',
+                        new vscode.CancellationTokenSource().token
+                    );
 
-                assert.ok(symbols);
-                const javaSymbols = symbols.filter(symbol =>
-                    symbol.kind === vscode.SymbolKind.Field
-                );
-                const fxmlSymbols = symbols.filter(symbol =>
-                    symbol.kind === vscode.SymbolKind.Variable
-                );
+                    assert.ok(symbols);
+                    const javaSymbols = symbols.filter(symbol =>
+                        symbol.kind === vscode.SymbolKind.Field
+                    );
+                    const fxmlSymbols = symbols.filter(symbol =>
+                        symbol.kind === vscode.SymbolKind.Variable
+                    );
 
-                assert.strictEqual(javaSymbols.length, 1);
-                assertFsPathEqual(javaSymbols[0].location.uri.fsPath, sourceControllerPath);
-                assert.strictEqual(javaSymbols[0].name, 'submitButton');
+                    assert.strictEqual(javaSymbols.length, 1);
+                    assertFsPathEqual(javaSymbols[0].location.uri.fsPath, sourceControllerPath);
+                    assert.strictEqual(javaSymbols[0].name, 'submitButton');
 
-                assert.strictEqual(fxmlSymbols.length, 1);
-                assertFsPathEqual(fxmlSymbols[0].location.uri.fsPath, fxmlPath);
-                assert.strictEqual(fxmlSymbols[0].name, 'submitButton');
-            });
+                    assert.strictEqual(fxmlSymbols.length, 1);
+                    assertFsPathEqual(fxmlSymbols[0].location.uri.fsPath, fxmlPath);
+                    assert.strictEqual(fxmlSymbols[0].name, 'submitButton');
+                });
+            } finally {
+                provider.dispose();
+            }
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true });
         }
@@ -597,6 +619,7 @@ suite('Extension Test Suite', () => {
 
             const provider = new WorkspaceSymbolProvider();
             const openedFiles: string[] = [];
+            let workspaceSymbolUriScans = 0;
             try {
                 await withMockFindFiles([controllerPath, fxmlPath], async () => {
                     await withMockOpenTextDocument(async () => {
@@ -613,9 +636,15 @@ suite('Extension Test Suite', () => {
                             'submit',
                             new vscode.CancellationTokenSource().token
                         );
+                        const thirdQuerySymbols = await provider.provideWorkspaceSymbols(
+                            'button',
+                            new vscode.CancellationTokenSource().token
+                        );
 
                         assert.strictEqual(firstQuerySymbols.length, 2);
                         assert.strictEqual(secondQuerySymbols.length, 2);
+                        assert.strictEqual(thirdQuerySymbols.length, 2);
+                        assert.strictEqual(workspaceSymbolUriScans, 2, 'repeated queries should reuse cached FXML and Java URI lists');
 
                         const openCounts = new Map<string, number>();
                         for (const filePath of openedFiles) {
@@ -633,6 +662,10 @@ suite('Extension Test Suite', () => {
                     }, uri => {
                         openedFiles.push(normalizeFsPath(uri.fsPath));
                     });
+                }, pattern => {
+                    if (pattern === '**/*.fxml' || pattern === '**/*.java') {
+                        workspaceSymbolUriScans++;
+                    }
                 });
             } finally {
                 provider.dispose();
@@ -914,7 +947,7 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(getRangeText(valueDocument, center!.range as vscode.Range), 'c');
     });
 
-    test('Should provide JavaFX CSS hovers for -fx- properties', () => {
+    test('Should provide JavaFX CSS hovers for -fx- properties', async () => {
         const provider = new JavafxCssHoverProvider();
         const document = createMockCssDocument([
             '.root {',
@@ -923,7 +956,7 @@ suite('Extension Test Suite', () => {
         ].join('\n'));
         const line = document.lineAt(1).text;
 
-        const hover = provider.provideHover(
+        const hover = await provider.provideHover(
             document,
             new vscode.Position(1, line.indexOf('-fx-alignment') + 2),
             new vscode.CancellationTokenSource().token
@@ -933,6 +966,27 @@ suite('Extension Test Suite', () => {
         assert.match(getHoverText(hover), /-fx-alignment: \[/);
         assert.match(getHoverText(hover), /\*\*Default:\*\* `top-left`/);
         assert.match(getHoverText(hover), /\*\*Applies to:\*\* `FlowPane`/);
+    });
+
+    test('Should cache missing Java class lookups during diagnostics', async () => {
+        const document = createMockFxmlDocument([
+            '<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.MissingController">',
+            '</VBox>',
+        ].join('\n'));
+        let javaFindFilesCalls = 0;
+
+        await withMockFindFiles([], async () => {
+            const firstDiagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+            const secondDiagnostics = await collectFxmlDiagnostics(document, new vscode.CancellationTokenSource().token);
+
+            assert.strictEqual(firstDiagnostics.length, 1);
+            assert.strictEqual(secondDiagnostics.length, 1);
+            assert.strictEqual(javaFindFilesCalls, 1);
+        }, pattern => {
+            if (pattern === '**/com/example/MissingController.java') {
+                javaFindFilesCalls++;
+            }
+        });
     });
 
     test('Should reuse and refresh the cached FXML controller index', async () => {
@@ -1183,7 +1237,10 @@ suite('Extension Test Suite', () => {
         }
     });
 
-    test('Should refresh FXML diagnostics after controller saves', async () => {
+    test('Should refresh FXML diagnostics after controller saves', async function () {
+        // This exercises real document saves plus diagnostics refreshes in the extension host.
+        this.timeout(5000);
+
         const extension = vscode.extensions.getExtension('unknowIfGuestInDream.tlcsdm-javafx-support');
         await extension?.activate();
 
@@ -1288,7 +1345,7 @@ suite('Extension Test Suite', () => {
         const cssCompletions = await new JavafxCssCompletionProvider().provideCompletionItems(cssDocument, position, cancelledToken);
         assert.strictEqual(cssCompletions, undefined);
 
-        const cssHover = new JavafxCssHoverProvider().provideHover(cssDocument, position, cancelledToken);
+        const cssHover = await new JavafxCssHoverProvider().provideHover(cssDocument, position, cancelledToken);
         assert.strictEqual(cssHover, undefined);
 
         const symbols = new FxmlDocumentSymbolProvider().provideDocumentSymbols(document, cancelledToken);
@@ -1731,10 +1788,14 @@ async function withMockFindFiles(
             .filter(file => matchesMockGlob(file, pattern))
             .map(file => vscode.Uri.file(file));
     };
+    resetJavaClassCacheForTests();
+    resetWorkspaceSymbolProvidersForTests();
 
     try {
         await run();
     } finally {
+        resetWorkspaceSymbolProvidersForTests();
+        resetJavaClassCacheForTests();
         workspace.findFiles = originalFindFiles;
     }
 }

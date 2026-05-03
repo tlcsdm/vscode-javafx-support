@@ -1,5 +1,16 @@
 import * as vscode from 'vscode';
 import { getFxmlFilesForMember } from './fxmlControllerCache';
+import { getFullyQualifiedClassName } from './javaControllerResolver';
+import { escapeRegex } from './utils';
+
+const METHOD_NAME_EXCLUDED_KEYWORDS = new Set([
+    'if', 'for', 'while', 'switch', 'catch', 'new', 'return', 'class', 'interface'
+]);
+const FIELD_NAME_EXCLUDED_KEYWORDS = new Set([
+    'public', 'private', 'protected', 'static', 'final', 'void',
+    'class', 'interface', 'extends', 'implements', 'import',
+    'package', 'return', 'new'
+]);
 
 /**
  * Provides CodeLens for @FXML annotated fields and methods in Java controller classes.
@@ -23,7 +34,7 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
             return codeLenses;
         }
 
-        const controllerClassName = this.getFullyQualifiedClassName(document);
+        const controllerClassName = getFullyQualifiedClassName(document);
         if (!controllerClassName) {
             return codeLenses;
         }
@@ -80,10 +91,7 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
         // Match method declaration: e.g., "private void handleClick(ActionEvent event)"
         const methodMatch = line.match(/\b(\w+)\s*\(/);
         if (methodMatch) {
-            const javaKeywords = new Set([
-                'if', 'for', 'while', 'switch', 'catch', 'new', 'return', 'class', 'interface'
-            ]);
-            if (!javaKeywords.has(methodMatch[1])) {
+            if (!METHOD_NAME_EXCLUDED_KEYWORDS.has(methodMatch[1])) {
                 return methodMatch[1];
             }
         }
@@ -91,12 +99,7 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
         // Match field declaration: e.g., "private Button myButton;"
         const fieldMatch = line.match(/\b(\w+)\s*[;=,)]/);
         if (fieldMatch) {
-            const javaKeywords = new Set([
-                'public', 'private', 'protected', 'static', 'final', 'void',
-                'class', 'interface', 'extends', 'implements', 'import',
-                'package', 'return', 'new'
-            ]);
-            if (!javaKeywords.has(fieldMatch[1])) {
+            if (!FIELD_NAME_EXCLUDED_KEYWORDS.has(fieldMatch[1])) {
                 return fieldMatch[1];
             }
         }
@@ -110,23 +113,6 @@ export class FxmlCodeLensProvider implements vscode.CodeLensProvider {
     private isMethodDeclaration(line: string, name: string): boolean {
         const pattern = new RegExp(`\\b${escapeRegex(name)}\\s*\\(`);
         return pattern.test(line);
-    }
-
-    /**
-     * Get the fully qualified class name from the Java source file
-     */
-    private getFullyQualifiedClassName(document: vscode.TextDocument): string | undefined {
-        const text = document.getText();
-
-        const packageMatch = text.match(/package\s+([\w.]+)\s*;/);
-        const packageName = packageMatch ? packageMatch[1] : '';
-
-        const classMatch = text.match(/class\s+(\w+)/);
-        if (!classMatch) {
-            return undefined;
-        }
-
-        return packageName ? `${packageName}.${classMatch[1]}` : classMatch[1];
     }
 
 }
@@ -207,8 +193,4 @@ function findMemberInFxml(
     }
 
     return undefined;
-}
-
-function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

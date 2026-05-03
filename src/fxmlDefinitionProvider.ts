@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { findJavaClass, getSuperclassName } from './javaControllerResolver';
+import { findControllerInDocument, getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
 
 // Matches quoted FXML attribute values that resolve resources relative to the current document,
 // for example image="@images/logo.png" or stylesheets="@styles/main.css".
@@ -46,7 +47,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         // Check if clicking on onAction (or other event handlers)
         const eventHandlerMatch = this.getAttributeValueAtPosition(line, position.character, /on\w+\s*=\s*"#(\w+)"/g);
         if (eventHandlerMatch) {
-            const controllerClassName = this.findControllerInDocument(document);
+            const controllerClassName = findControllerInDocument(document);
             if (controllerClassName) {
                 return this.findMethodInController(controllerClassName, eventHandlerMatch, token);
             }
@@ -55,7 +56,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         // Check if clicking on fx:id
         const fxIdMatch = this.getAttributeValueAtPosition(line, position.character, /fx:id\s*=\s*"(\w+)"/g);
         if (fxIdMatch) {
-            const controllerClassName = this.findControllerInDocument(document);
+            const controllerClassName = findControllerInDocument(document);
             if (controllerClassName) {
                 return this.findFieldInController(controllerClassName, fxIdMatch, token);
             }
@@ -151,15 +152,6 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         return new vscode.Location(resourceUri, new vscode.Position(0, 0));
-    }
-
-    /**
-     * Find the fx:controller value in the FXML document
-     */
-    private findControllerInDocument(document: vscode.TextDocument): string | undefined {
-        const text = document.getText();
-        const match = text.match(/fx:controller\s*=\s*"([^"]+)"/);
-        return match ? match[1] : undefined;
     }
 
     /**
@@ -278,7 +270,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
             }
 
             if (isMethod) {
-                const methodMatch = this.getMethodDeclarationMatch(lineText, memberName);
+                const methodMatch = getMethodDeclarationMatch(lineText, memberName);
                 if (methodMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, methodMatch.index));
                     // Prefer @FXML-annotated method (annotation should be on preceding line)
@@ -290,7 +282,7 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
                     }
                 }
             } else {
-                const fieldMatch = this.getFieldDeclarationMatch(lineText, memberName);
+                const fieldMatch = getFieldDeclarationMatch(lineText, memberName);
                 if (fieldMatch) {
                     const location = new vscode.Location(uri, new vscode.Position(i, fieldMatch.index));
                     // Prefer @FXML-annotated field
@@ -312,48 +304,4 @@ export class FxmlDefinitionProvider implements vscode.DefinitionProvider {
         return bestMatch;
     }
 
-    private getMethodDeclarationMatch(line: string, methodName: string): RegExpExecArray | undefined {
-        const methodPattern = new RegExp(`\\b${this.escapeRegex(methodName)}\\s*\\(`);
-        const methodMatch = methodPattern.exec(line);
-        if (!methodMatch) {
-            return undefined;
-        }
-
-        const prefix = line.slice(0, methodMatch.index).trimEnd();
-        if (!this.isValidMemberDeclarationPrefix(prefix)) {
-            return undefined;
-        }
-
-        const lastPrefixChar = prefix.trimEnd().at(-1);
-        return lastPrefixChar && (/\w/.test(lastPrefixChar) || lastPrefixChar === '>' || lastPrefixChar === ']')
-            ? methodMatch
-            : undefined;
-    }
-
-    private getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
-        const fieldPattern = new RegExp(`\\b${this.escapeRegex(fieldName)}\\b\\s*(?=[;=,)])`);
-        const fieldMatch = fieldPattern.exec(line);
-        if (!fieldMatch) {
-            return undefined;
-        }
-
-        const prefix = line.slice(0, fieldMatch.index).trim();
-        if (!this.isValidMemberDeclarationPrefix(prefix)) {
-            return undefined;
-        }
-
-        return fieldMatch;
-    }
-
-    private isValidMemberDeclarationPrefix(prefix: string): boolean {
-        if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
-            return false;
-        }
-
-        return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
-    }
-
-    private escapeRegex(str: string): string {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
 }

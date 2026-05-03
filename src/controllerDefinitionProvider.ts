@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getFxmlFilesForMember } from './fxmlControllerCache';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
+import { escapeRegex } from './utils';
 
 /**
  * Provides "Go to Definition" from Java controller classes to FXML files.
@@ -33,7 +34,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         const isMethod = this.isMethodDeclaration(currentLine, memberName);
 
         // Find the FXML files that reference this controller
-        const controllerClassName = this.getFullyQualifiedClassName(document);
+        const controllerClassName = getFullyQualifiedClassName(document);
         if (!controllerClassName) {
             return undefined;
         }
@@ -100,15 +101,8 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
      * Check if the line contains a method declaration with the given name
      */
     private isMethodDeclaration(line: string, name: string): boolean {
-        const pattern = new RegExp(`\\b${this.escapeRegex(name)}\\s*\\(`);
+        const pattern = new RegExp(`\\b${escapeRegex(name)}\\s*\\(`);
         return pattern.test(line);
-    }
-
-    /**
-     * Get the fully qualified class name from the Java source file
-     */
-    private getFullyQualifiedClassName(document: vscode.TextDocument): string | undefined {
-        return getFullyQualifiedClassName(document);
     }
 
     /**
@@ -169,7 +163,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         methodName: string,
         token: vscode.CancellationToken
     ): vscode.Location | undefined {
-        const pattern = new RegExp(`="#${this.escapeRegex(methodName)}"`);
+        const pattern = new RegExp(`="#${escapeRegex(methodName)}"`);
 
         for (let i = 0; i < document.lineCount; i++) {
             if (token.isCancellationRequested) {
@@ -196,7 +190,7 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         fieldName: string,
         token: vscode.CancellationToken
     ): vscode.Location | undefined {
-        const pattern = new RegExp(`fx:id="${this.escapeRegex(fieldName)}"`);
+        const pattern = new RegExp(`fx:id="${escapeRegex(fieldName)}"`);
 
         for (let i = 0; i < document.lineCount; i++) {
             if (token.isCancellationRequested) {
@@ -213,7 +207,4 @@ export class ControllerDefinitionProvider implements vscode.DefinitionProvider {
         return undefined;
     }
 
-    private escapeRegex(str: string): string {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
 }

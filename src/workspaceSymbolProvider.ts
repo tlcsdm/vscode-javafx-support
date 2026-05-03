@@ -1,10 +1,9 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { EXCLUDE_GLOB, FXML_GLOB, JAVA_GLOB } from './constants';
 import { getFullyQualifiedClassName } from './javaControllerResolver';
+import { isFxmlDocument, isJavaDocument, processInBatches } from './utils';
 
-const FXML_GLOB = '**/*.fxml';
-const JAVA_GLOB = '**/*.java';
-const EXCLUDE_GLOB = '**/node_modules/**';
 const IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS = new Set([
     'bin',
     'build',
@@ -12,6 +11,7 @@ const IGNORED_WORKSPACE_SYMBOL_DIRECTORY_SEGMENTS = new Set([
     'out',
     'target',
 ]);
+const SYMBOL_COLLECTION_BATCH_SIZE = 20;
 const MAX_ANNOTATION_LOOKAHEAD = 3;
 // Capture group 1 is the element name, group 2 is the quote character, and
 // capture group 3 is the fx:id value.
@@ -22,10 +22,16 @@ type CachedWorkspaceSymbol = {
     symbol: vscode.SymbolInformation;
 };
 
+const workspaceSymbolProviders = new Set<WorkspaceSymbolProvider>();
+
 export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<vscode.SymbolInformation>, vscode.Disposable {
     private readonly fxmlSymbols = new Map<string, CachedWorkspaceSymbol[]>();
     private readonly javaSymbols = new Map<string, CachedWorkspaceSymbol[]>();
     private readonly disposable: vscode.Disposable;
+    private fxmlUris: vscode.Uri[] | undefined;
+    private javaUris: vscode.Uri[] | undefined;
+    private fxmlUrisPromise: Promise<vscode.Uri[]> | undefined;
+    private javaUrisPromise: Promise<vscode.Uri[]> | undefined;
 
     constructor() {
         const fxmlWatcher = vscode.workspace.createFileSystemWatcher(FXML_GLOB);
@@ -34,20 +40,30 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         this.disposable = vscode.Disposable.from(
             fxmlWatcher,
             javaWatcher,
-            fxmlWatcher.onDidCreate(uri => this.invalidateFxmlUri(uri)),
+            fxmlWatcher.onDidCreate(uri => this.invalidateFxmlUri(uri, true)),
             fxmlWatcher.onDidChange(uri => this.invalidateFxmlUri(uri)),
-            fxmlWatcher.onDidDelete(uri => this.invalidateFxmlUri(uri)),
-            javaWatcher.onDidCreate(uri => this.invalidateJavaUri(uri)),
+            fxmlWatcher.onDidDelete(uri => this.invalidateFxmlUri(uri, true)),
+            javaWatcher.onDidCreate(uri => this.invalidateJavaUri(uri, true)),
             javaWatcher.onDidChange(uri => this.invalidateJavaUri(uri)),
-            javaWatcher.onDidDelete(uri => this.invalidateJavaUri(uri)),
+            javaWatcher.onDidDelete(uri => this.invalidateJavaUri(uri, true)),
             vscode.workspace.onDidChangeTextDocument(event => this.invalidateDocument(event.document)),
         );
+        workspaceSymbolProviders.add(this);
     }
 
     dispose(): void {
         this.disposable.dispose();
+        workspaceSymbolProviders.delete(this);
+        this.clearCaches();
+    }
+
+    clearCaches(): void {
         this.fxmlSymbols.clear();
         this.javaSymbols.clear();
+        this.fxmlUris = undefined;
+        this.javaUris = undefined;
+        this.fxmlUrisPromise = undefined;
+        this.javaUrisPromise = undefined;
     }
 
     async provideWorkspaceSymbols(
@@ -60,8 +76,8 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         }
 
         const [fxmlUris, javaUris] = await Promise.all([
-            vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB),
-            vscode.workspace.findFiles(JAVA_GLOB, EXCLUDE_GLOB),
+            this.getFxmlUris(),
+            this.getJavaUris(),
         ]);
 
         if (token.isCancellationRequested) {
@@ -121,18 +137,63 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
             }
         }
 
+        const missingUris: vscode.Uri[] = [];
         for (const uri of uris) {
             if (token.isCancellationRequested) {
                 return;
             }
 
             const key = uri.toString();
-            if (cache.has(key)) {
-                continue;
+            if (!cache.has(key)) {
+                missingUris.push(uri);
+            }
+        }
+
+        await processInBatches(missingUris, SYMBOL_COLLECTION_BATCH_SIZE, async uri => {
+            if (token.isCancellationRequested) {
+                return;
             }
 
-            cache.set(key, await collectSymbols(uri));
+            cache.set(uri.toString(), await collectSymbols(uri));
+        });
+    }
+
+    private async getFxmlUris(): Promise<vscode.Uri[]> {
+        // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
+        if (this.fxmlUris) {
+            return this.fxmlUris;
         }
+
+        if (!this.fxmlUrisPromise) {
+            this.fxmlUrisPromise = Promise.resolve(vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB)).then(uris => {
+                this.fxmlUris = uris;
+                this.fxmlUrisPromise = undefined;
+                return uris;
+            }, error => {
+                this.fxmlUrisPromise = undefined;
+                throw error;
+            });
+        }
+        return this.fxmlUrisPromise;
+    }
+
+    private async getJavaUris(): Promise<vscode.Uri[]> {
+        // Cache workspace file lists between symbol queries; file create/delete watchers clear this.
+        if (this.javaUris) {
+            return this.javaUris;
+        }
+
+        if (!this.javaUrisPromise) {
+            this.javaUrisPromise = Promise.resolve(vscode.workspace.findFiles(JAVA_GLOB, EXCLUDE_GLOB)).then(uris => {
+                this.javaUris = uris;
+                this.javaUrisPromise = undefined;
+                return uris;
+            }, error => {
+                this.javaUrisPromise = undefined;
+                throw error;
+            });
+        }
+        return this.javaUrisPromise;
     }
 
     private async readFxmlSymbols(uri: vscode.Uri): Promise<CachedWorkspaceSymbol[]> {
@@ -274,30 +335,30 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
     }
 
     private invalidateDocument(document: vscode.TextDocument): void {
-        if (this.isFxmlDocument(document)) {
+        if (isFxmlDocument(document)) {
             this.invalidateFxmlUri(document.uri);
             return;
         }
 
-        if (this.isJavaDocument(document)) {
+        if (isJavaDocument(document)) {
             this.invalidateJavaUri(document.uri);
         }
     }
 
-    private invalidateFxmlUri(uri: vscode.Uri): void {
+    private invalidateFxmlUri(uri: vscode.Uri, invalidateUriList = false): void {
         this.fxmlSymbols.delete(uri.toString());
+        if (invalidateUriList) {
+            this.fxmlUris = undefined;
+            this.fxmlUrisPromise = undefined;
+        }
     }
 
-    private invalidateJavaUri(uri: vscode.Uri): void {
+    private invalidateJavaUri(uri: vscode.Uri, invalidateUriList = false): void {
         this.javaSymbols.delete(uri.toString());
-    }
-
-    private isFxmlDocument(document: vscode.TextDocument): boolean {
-        return document.uri.scheme === 'file' && document.fileName.endsWith('.fxml');
-    }
-
-    private isJavaDocument(document: vscode.TextDocument): boolean {
-        return document.uri.scheme === 'file' && document.fileName.endsWith('.java');
+        if (invalidateUriList) {
+            this.javaUris = undefined;
+            this.javaUrisPromise = undefined;
+        }
     }
 
     private isIgnoredWorkspaceSymbolUri(uri: vscode.Uri): boolean {
@@ -309,5 +370,11 @@ export class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider<v
         }
 
         return false;
+    }
+}
+
+export function resetWorkspaceSymbolProvidersForTests(): void {
+    for (const provider of workspaceSymbolProviders) {
+        provider.clearCaches();
     }
 }

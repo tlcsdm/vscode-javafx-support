@@ -13,6 +13,7 @@ import { FxmlHoverProvider } from './fxmlHoverProvider';
 import { FxmlReferenceProvider } from './fxmlReferenceProvider';
 import { WorkspaceSymbolProvider } from './workspaceSymbolProvider';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './javafxCssProvider';
+import { registerJavaClassCache } from './javaControllerResolver';
 
 /**
  * Extension activation
@@ -43,6 +44,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const fxmlFoldingSelector: vscode.DocumentSelector = [
         fxmlSelector,
         { language: 'fxml', scheme: 'untitled' },
+        // Keep folding available if another XML extension claims a .fxml document before this extension corrects the language.
         { language: 'xml', scheme: 'file', pattern: '**/*.fxml' },
     ];
 
@@ -157,6 +159,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
     context.subscriptions.push(new FxmlDiagnosticProvider());
     context.subscriptions.push(registerFxmlControllerCache());
+    context.subscriptions.push(registerJavaClassCache());
 
     // Ensure .fxml files use the fxml language (prevent XML extension override)
     const ensureFxmlLanguage = (document: vscode.TextDocument) => {

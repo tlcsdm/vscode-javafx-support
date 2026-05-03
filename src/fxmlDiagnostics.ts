@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
-import { findJavaClass, getSuperclassName, type JavaClassInfo } from './javaControllerResolver';
+import { clearJavaClassCache, findJavaClass, getSuperclassName, type JavaClassInfo } from './javaControllerResolver';
+import { getFieldDeclarationMatch, getMethodDeclarationMatch } from './utils';
 
 const FXML_LANGUAGE_IDS = ['fxml'];
 const DIAGNOSTIC_SOURCE = 'tlcsdm-javafx-support';
 const MAX_FXML_ANNOTATION_DISTANCE = 2;
+const VALIDATION_DEBOUNCE_MS = 300;
 
 interface AttributeOccurrence {
     value: string;
@@ -16,25 +18,28 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
     private readonly collection = vscode.languages.createDiagnosticCollection('javafx-support');
     private readonly disposables: vscode.Disposable[];
     private readonly pendingValidations = new Map<string, vscode.CancellationTokenSource>();
+    private readonly debouncedValidations = new Map<string, NodeJS.Timeout>();
 
     constructor() {
         this.disposables = [
             this.collection,
             vscode.workspace.onDidOpenTextDocument(document => {
-                void this.validateDocument(document);
+                void this.validateDocumentNow(document);
             }),
             vscode.workspace.onDidChangeTextDocument(event => {
-                void this.validateDocument(event.document);
+                this.scheduleValidation(event.document);
             }),
             vscode.workspace.onDidSaveTextDocument(document => {
                 if (this.shouldRefreshOpenFxmlDocuments(document)) {
+                    clearJavaClassCache();
                     this.refreshOpenFxmlDocuments();
                     return;
                 }
 
-                void this.validateDocument(document);
+                void this.validateDocumentNow(document);
             }),
             vscode.workspace.onDidCloseTextDocument(document => {
+                this.clearDebouncedValidation(document.uri);
                 this.cancelPendingValidation(document.uri);
                 this.collection.delete(document.uri);
             }),
@@ -44,6 +49,11 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
     }
 
     dispose(): void {
+        for (const timeout of this.debouncedValidations.values()) {
+            clearTimeout(timeout);
+        }
+        this.debouncedValidations.clear();
+
         for (const tokenSource of this.pendingValidations.values()) {
             tokenSource.cancel();
             tokenSource.dispose();
@@ -53,6 +63,21 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
         for (const disposable of this.disposables) {
             disposable.dispose();
         }
+    }
+
+    private validateDocumentNow(document: vscode.TextDocument): Promise<void> {
+        this.clearDebouncedValidation(document.uri);
+        return this.validateDocument(document);
+    }
+
+    private scheduleValidation(document: vscode.TextDocument): void {
+        this.clearDebouncedValidation(document.uri);
+        const key = document.uri.toString();
+        const timeout = setTimeout(() => {
+            this.debouncedValidations.delete(key);
+            void this.validateDocument(document);
+        }, VALIDATION_DEBOUNCE_MS);
+        this.debouncedValidations.set(key, timeout);
     }
 
     private async validateDocument(document: vscode.TextDocument): Promise<void> {
@@ -86,7 +111,7 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
     private refreshOpenFxmlDocuments(): void {
         for (const document of vscode.workspace.textDocuments) {
             if (this.shouldValidate(document)) {
-                void this.validateDocument(document);
+                void this.validateDocumentNow(document);
             }
         }
     }
@@ -111,6 +136,17 @@ export class FxmlDiagnosticProvider implements vscode.Disposable {
         tokenSource.cancel();
         tokenSource.dispose();
         this.pendingValidations.delete(key);
+    }
+
+    private clearDebouncedValidation(uri: vscode.Uri): void {
+        const key = uri.toString();
+        const timeout = this.debouncedValidations.get(key);
+        if (!timeout) {
+            return;
+        }
+
+        clearTimeout(timeout);
+        this.debouncedValidations.delete(key);
     }
 }
 
@@ -386,49 +422,4 @@ function findMethodInJavaFile(
     }
 
     return false;
-}
-
-function getMethodDeclarationMatch(line: string, methodName: string): RegExpExecArray | undefined {
-    const methodPattern = new RegExp(`\\b${escapeRegex(methodName)}\\s*\\(`);
-    const methodMatch = methodPattern.exec(line);
-    if (!methodMatch) {
-        return undefined;
-    }
-
-    const prefix = line.slice(0, methodMatch.index).trimEnd();
-    if (!isValidMemberDeclarationPrefix(prefix)) {
-        return undefined;
-    }
-
-    const lastPrefixChar = prefix.trimEnd().at(-1);
-    return isValidMethodPrefixTerminator(lastPrefixChar)
-        ? methodMatch
-        : undefined;
-}
-
-function getFieldDeclarationMatch(line: string, fieldName: string): RegExpExecArray | undefined {
-    const fieldPattern = new RegExp(`\\b${escapeRegex(fieldName)}\\b\\s*(?=[;=,)])`);
-    const fieldMatch = fieldPattern.exec(line);
-    if (!fieldMatch) {
-        return undefined;
-    }
-
-    const prefix = line.slice(0, fieldMatch.index).trim();
-    return isValidMemberDeclarationPrefix(prefix) ? fieldMatch : undefined;
-}
-
-function isValidMemberDeclarationPrefix(prefix: string): boolean {
-    if (!prefix || prefix.endsWith('.') || /[(){};]/.test(prefix)) {
-        return false;
-    }
-
-    return !/\b(?:if|for|while|switch|catch|new|return|throw)\b/.test(prefix);
-}
-
-function isValidMethodPrefixTerminator(character: string | undefined): boolean {
-    return !!character && (/\w/.test(character) || character === '>' || character === ']');
-}
-
-function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

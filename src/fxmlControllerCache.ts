@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
+import { EXCLUDE_GLOB, FXML_GLOB } from './constants';
 import { classExtends } from './javaControllerResolver';
-
-const FXML_GLOB = '**/*.fxml';
-const FXML_EXCLUDE_GLOB = '**/node_modules/**';
+import { isFxmlDocument, processInBatches } from './utils';
 
 type CachedFxmlEntry = {
     controllerClassName: string;
@@ -29,12 +28,12 @@ class FxmlControllerCache implements vscode.Disposable {
             this.remove(uri);
         });
         const onOpen = vscode.workspace.onDidOpenTextDocument(document => {
-            if (this.isFxmlDocument(document)) {
+            if (isFxmlDocument(document) && !this.hasCurrentDocumentEntry(document)) {
                 void this.refresh(document.uri, document);
             }
         });
         const onSave = vscode.workspace.onDidSaveTextDocument(document => {
-            if (this.isFxmlDocument(document)) {
+            if (isFxmlDocument(document)) {
                 void this.refresh(document.uri, document);
             }
         });
@@ -90,8 +89,8 @@ class FxmlControllerCache implements vscode.Disposable {
     }
 
     private async populateInitialCache(): Promise<void> {
-        const uris = await vscode.workspace.findFiles(FXML_GLOB, FXML_EXCLUDE_GLOB);
-        await Promise.all(uris.map(uri => this.refresh(uri)));
+        const uris = await vscode.workspace.findFiles(FXML_GLOB, EXCLUDE_GLOB);
+        await processInBatches(uris, 10, uri => this.refresh(uri));
     }
 
     private async refresh(uri: vscode.Uri, document?: vscode.TextDocument): Promise<void> {
@@ -114,7 +113,7 @@ class FxmlControllerCache implements vscode.Disposable {
                 controllerClassName,
                 fieldIds: members.fieldIds,
                 methodNames: members.methodNames,
-                uri
+                uri,
             });
         } catch {
             this.remove(uri);
@@ -200,8 +199,21 @@ class FxmlControllerCache implements vscode.Disposable {
         return false;
     }
 
-    private isFxmlDocument(document: vscode.TextDocument): boolean {
-        return document.uri.scheme === 'file' && document.fileName.endsWith('.fxml');
+    private hasCurrentDocumentEntry(document: vscode.TextDocument): boolean {
+        const entry = this.entries.get(document.uri.fsPath);
+        if (!entry) {
+            return false;
+        }
+
+        const text = document.getText();
+        const controllerClassName = getControllerClassName(text);
+        if (entry.controllerClassName !== controllerClassName) {
+            return false;
+        }
+
+        const members = getFxmlMembers(text);
+        return setsEqual(entry.fieldIds, members.fieldIds)
+            && setsEqual(entry.methodNames, members.methodNames);
     }
 
     private isIgnored(uri: vscode.Uri): boolean {
@@ -255,4 +267,18 @@ function getFxmlMembers(text: string): { fieldIds: ReadonlySet<string>; methodNa
     }
 
     return { fieldIds, methodNames };
+}
+
+function setsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+    if (left.size !== right.size) {
+        return false;
+    }
+
+    for (const value of left) {
+        if (!right.has(value)) {
+            return false;
+        }
+    }
+
+    return true;
 }

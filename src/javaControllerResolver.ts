@@ -1,29 +1,92 @@
 import * as vscode from 'vscode';
+import { EXCLUDE_GLOB, JAVA_GLOB } from './constants';
+import { escapeRegex } from './utils';
 
 export interface JavaClassInfo {
     document: vscode.TextDocument;
     uri: vscode.Uri;
 }
 
+const javaClassUriCache = new Map<string, vscode.Uri | null>();
+
 export async function findJavaClass(className: string, token: vscode.CancellationToken): Promise<JavaClassInfo | undefined> {
     if (token.isCancellationRequested) {
         return undefined;
     }
 
-    const files = className.includes('.')
-        ? await vscode.workspace.findFiles(`**/${className.replace(/\./g, '/')}.java`, '**/node_modules/**')
-        : await vscode.workspace.findFiles(`**/${className}.java`, '**/node_modules/**');
-
-    if (token.isCancellationRequested || files.length === 0) {
+    // undefined = not searched yet; null = searched and known missing.
+    const cachedUri = javaClassUriCache.get(className);
+    if (cachedUri === null) {
         return undefined;
     }
 
-    const document = await vscode.workspace.openTextDocument(files[0]);
+    if (cachedUri) {
+        return openJavaClassDocument(cachedUri, token);
+    }
+
+    const files = className.includes('.')
+        ? await vscode.workspace.findFiles(`**/${className.replace(/\./g, '/')}.java`, EXCLUDE_GLOB)
+        : await vscode.workspace.findFiles(`**/${className}.java`, EXCLUDE_GLOB);
+
+    if (token.isCancellationRequested || files.length === 0) {
+        if (!token.isCancellationRequested) {
+            javaClassUriCache.set(className, null);
+        }
+        return undefined;
+    }
+
+    javaClassUriCache.set(className, files[0]);
+    return openJavaClassDocument(files[0], token);
+}
+
+export function registerJavaClassCache(): vscode.Disposable {
+    const watcher = vscode.workspace.createFileSystemWatcher(JAVA_GLOB);
+    return vscode.Disposable.from(
+        watcher,
+        watcher.onDidCreate(() => clearNegativeJavaClassCacheEntries()),
+        watcher.onDidDelete(uri => clearJavaClassCacheUri(uri))
+    );
+}
+
+export function resetJavaClassCacheForTests(): void {
+    clearJavaClassCache();
+}
+
+export function clearJavaClassCache(): void {
+    javaClassUriCache.clear();
+}
+
+async function openJavaClassDocument(uri: vscode.Uri, token: vscode.CancellationToken): Promise<JavaClassInfo | undefined> {
+    let document: vscode.TextDocument;
+    try {
+        document = await vscode.workspace.openTextDocument(uri);
+    } catch {
+        clearJavaClassCacheUri(uri);
+        return undefined;
+    }
+
     if (token.isCancellationRequested) {
         return undefined;
     }
 
-    return { document, uri: files[0] };
+    return { document, uri };
+}
+
+function clearNegativeJavaClassCacheEntries(): void {
+    for (const [className, uri] of javaClassUriCache) {
+        if (uri === null) {
+            javaClassUriCache.delete(className);
+        }
+    }
+}
+
+function clearJavaClassCacheUri(deletedUri: vscode.Uri): void {
+    const deletedKey = deletedUri.toString();
+    for (const [className, uri] of javaClassUriCache) {
+        if (uri?.toString() === deletedKey) {
+            javaClassUriCache.delete(className);
+        }
+    }
 }
 
 export function getFullyQualifiedClassName(document: vscode.TextDocument): string | undefined {
@@ -93,8 +156,4 @@ function resolveClassName(text: string, className: string): string {
 function getPackageName(text: string): string {
     const packageMatch = text.match(/\bpackage\s+([\w.]+)\s*;/);
     return packageMatch ? packageMatch[1] : '';
-}
-
-function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
