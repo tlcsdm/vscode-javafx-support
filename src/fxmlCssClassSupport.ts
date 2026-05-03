@@ -7,6 +7,7 @@ const STYLE_CLASS_NAME_PATTERN = '[A-Za-z_][A-Za-z0-9_-]*';
 const CSS_CLASS_SELECTOR_PATTERN = new RegExp(`(^|[^A-Za-z0-9_-])\\.(${STYLE_CLASS_NAME_PATTERN})`, 'gm');
 const STYLE_CLASS_ATTRIBUTE_PATTERN = /\bstyleClass\s*=\s*(["'])([^"']*)\1/gm;
 const STYLE_CLASS_TOKEN_PATTERN = new RegExp(STYLE_CLASS_NAME_PATTERN, 'g');
+const WHITESPACE_PATTERN = /\s/;
 const IGNORED_STYLE_CLASS_DIRECTORY_SEGMENTS = new Set([
     'bin',
     'build',
@@ -152,12 +153,12 @@ export async function getWorkspaceCssClassNames(
         }
 
         const document = await vscode.workspace.openTextDocument(uri);
-        for (const location of collectCssClassDefinitions(document)) {
+        for (const className of collectCssClassNames(document)) {
             if (token.isCancellationRequested) {
                 return;
             }
 
-            classNames.add(document.getText(location.range));
+            classNames.add(className);
         }
     });
 
@@ -169,12 +170,12 @@ function getStyleClassTokenRange(
     relativeOffset: number
 ): { start: number; end: number } | undefined {
     let start = relativeOffset;
-    while (start > 0 && !/\s/.test(value[start - 1])) {
+    while (start > 0 && !WHITESPACE_PATTERN.test(value[start - 1])) {
         start--;
     }
 
     let end = relativeOffset;
-    while (end < value.length && !/\s/.test(value[end])) {
+    while (end < value.length && !WHITESPACE_PATTERN.test(value[end])) {
         end++;
     }
 
@@ -204,6 +205,19 @@ function collectCssClassDefinitions(
     }
 
     return locations;
+}
+
+function collectCssClassNames(document: vscode.TextDocument): string[] {
+    const text = document.getText();
+    const classNames = new Set<string>();
+    CSS_CLASS_SELECTOR_PATTERN.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    while ((match = CSS_CLASS_SELECTOR_PATTERN.exec(text)) !== null) {
+        classNames.add(match[2]);
+    }
+
+    return Array.from(classNames);
 }
 
 function collectFxmlStyleClassReferences(

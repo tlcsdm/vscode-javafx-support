@@ -122,7 +122,7 @@ export class JavafxCssCompletionProvider implements vscode.CompletionItemProvide
 
         const normalizedPrefix = context.prefix.toLowerCase();
         const items = classNames
-            .filter(className => normalizedPrefix.length === 0 || className.toLowerCase().startsWith(normalizedPrefix))
+            .filter(className => className.toLowerCase().startsWith(normalizedPrefix))
             .map(className => {
                 const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Variable);
                 item.detail = 'JavaFX CSS class';
