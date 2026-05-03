@@ -5,6 +5,7 @@ import { escapeRegex, findControllerInDocument, getFieldDeclarationMatch, getMet
 const MISSING_FX_ID_FIELD_CODE = 'missing-fx-id-field';
 const MISSING_EVENT_HANDLER_CODE = 'missing-event-handler';
 const QUICK_FIX_KIND = vscode.CodeActionKind.QuickFix;
+const MEMBER_INDENT = '    ';
 
 export class FxmlCodeActionProvider implements vscode.CodeActionProvider {
     static readonly providedCodeActionKinds = [QUICK_FIX_KIND];
@@ -171,7 +172,8 @@ function resolveFieldType(
         return undefined;
     }
 
-    const simpleName = tagName.split('.').pop()?.split(':').pop() ?? tagName;
+    const unqualifiedTagName = tagName.split('.').pop() ?? tagName;
+    const simpleName = unqualifiedTagName.split(':').pop() ?? unqualifiedTagName;
     if (!/^[A-Z]\w*$/.test(simpleName)) {
         return undefined;
     }
@@ -261,7 +263,7 @@ function updateControllerSource(
 
     const classDeclarationLine = findClassDeclarationLine(lines, classClosingLine);
     const hasExistingMembers = lines.slice(classDeclarationLine + 1, classClosingLine).some(line => line.trim() !== '');
-    const memberIndent = `${getIndentation(lines[classClosingLine])}    `;
+    const memberIndent = `${getIndentation(lines[classClosingLine])}${MEMBER_INDENT}`;
     const formattedMemberLines = memberLines.map(line => line ? `${memberIndent}${line}` : '');
     lines.splice(classClosingLine, 0, ...(hasExistingMembers ? [''] : []), ...formattedMemberLines);
     return lines.join(eol);
