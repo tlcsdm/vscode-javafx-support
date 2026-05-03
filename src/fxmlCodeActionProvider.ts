@@ -6,6 +6,7 @@ const MISSING_FX_ID_FIELD_CODE = 'missing-fx-id-field';
 const MISSING_EVENT_HANDLER_CODE = 'missing-event-handler';
 const QUICK_FIX_KIND = vscode.CodeActionKind.QuickFix;
 const MEMBER_INDENT = '    ';
+type ControllerMemberKind = 'field' | 'method';
 
 export class FxmlCodeActionProvider implements vscode.CodeActionProvider {
     static readonly providedCodeActionKinds = [QUICK_FIX_KIND];
@@ -93,7 +94,8 @@ export class FxmlCodeActionProvider implements vscode.CodeActionProvider {
             [
                 'javafx.fxml.FXML',
                 fieldType.importName,
-            ]
+            ],
+            'field'
         );
         if (!updatedSource) {
             return undefined;
@@ -134,7 +136,8 @@ export class FxmlCodeActionProvider implements vscode.CodeActionProvider {
             [
                 'javafx.event.ActionEvent',
                 'javafx.fxml.FXML',
-            ]
+            ],
+            'method'
         );
         if (!updatedSource) {
             return undefined;
@@ -248,7 +251,8 @@ function hasControllerMethod(document: vscode.TextDocument, methodName: string):
 function updateControllerSource(
     document: vscode.TextDocument,
     memberLines: readonly string[],
-    importsToAdd: ReadonlyArray<string | undefined>
+    importsToAdd: ReadonlyArray<string | undefined>,
+    memberKind: ControllerMemberKind
 ): string | undefined {
     const source = document.getText();
     const eol = document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
@@ -262,10 +266,14 @@ function updateControllerSource(
     }
 
     const classDeclarationLine = findClassDeclarationLine(lines, classClosingLine);
-    const hasExistingMembers = lines.slice(classDeclarationLine + 1, classClosingLine).some(line => line.trim() !== '');
+    const insertLine = memberKind === 'field'
+        ? findFieldInsertLine(lines, classDeclarationLine, classClosingLine)
+        : classClosingLine;
+    const hasExistingMembers = lines.slice(classDeclarationLine + 1, insertLine).some(line => line.trim() !== '');
+    const shouldInsertLeadingBlankLine = memberKind === 'method' && hasExistingMembers;
     const memberIndent = `${getIndentation(lines[classClosingLine])}${MEMBER_INDENT}`;
     const formattedMemberLines = memberLines.map(line => line ? `${memberIndent}${line}` : '');
-    lines.splice(classClosingLine, 0, ...(hasExistingMembers ? [''] : []), ...formattedMemberLines);
+    lines.splice(insertLine, 0, ...(shouldInsertLeadingBlankLine ? [''] : []), ...formattedMemberLines);
     return lines.join(eol);
 }
 
@@ -333,6 +341,30 @@ function findClassDeclarationLine(lines: readonly string[], beforeLine: number):
     }
 
     return 0;
+}
+
+function findFieldInsertLine(lines: readonly string[], classDeclarationLine: number, classClosingLine: number): number {
+    for (let index = classDeclarationLine + 1; index < classClosingLine; index++) {
+        if (!isMethodDeclarationLine(lines[index])) {
+            continue;
+        }
+
+        let methodStartLine = index;
+        while (methodStartLine > classDeclarationLine + 1 && lines[methodStartLine - 1].trim().startsWith('@')) {
+            methodStartLine--;
+        }
+        while (methodStartLine > classDeclarationLine + 1 && lines[methodStartLine - 1].trim() === '') {
+            methodStartLine--;
+        }
+        return methodStartLine;
+    }
+
+    return classClosingLine;
+}
+
+function isMethodDeclarationLine(line: string): boolean {
+    const methodName = /(\w+)\s*\(/.exec(line)?.[1];
+    return !!methodName && !!getMethodDeclarationMatch(line, methodName);
 }
 
 function findLastLineIndex(lines: readonly string[], predicate: (line: string) => boolean): number {
