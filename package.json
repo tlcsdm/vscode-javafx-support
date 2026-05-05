@@ -152,7 +152,7 @@
     "esbuild": "^0.28.0",
     "eslint": "^10.3.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1"
+    "typescript-eslint": "^8.59.2"
   },
   "license": "MIT",
   "dependencies": {
