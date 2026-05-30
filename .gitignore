@@ -27,3 +27,4 @@ coverage/
 
 # TypeScript
 *.tsbuildinfo
+.understand-anything/
