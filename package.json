@@ -138,7 +138,7 @@
     "watch": "node esbuild.mjs --watch",
     "package": "npm run check-types && node esbuild.mjs --production",
     "pretest": "tsc -p ./ && npm run lint",
-    "lint": "npm run check-types",
+    "lint": "eslint *.mjs && npm run check-types",
     "test": "vscode-test --config ./.vscode-test.json"
   },
   "devDependencies": {
