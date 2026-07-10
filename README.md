@@ -138,6 +138,7 @@ npm run compile
 npm run watch
 # Lint
 npm run lint
+# Note: with TypeScript 7.x, lint temporarily checks JS tooling files with ESLint. `src/` TypeScript files are type-checked (not fully linted) via `tsc --noEmit` until typescript-eslint adds TS7 support.
 # Test
 npm run test
 # Package extension
