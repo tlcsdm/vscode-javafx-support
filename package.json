@@ -2,7 +2,7 @@
   "name": "tlcsdm-javafx-support",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "publisher": "unknowIfGuestInDream",
   "icon": "images/icon.png",
   "repository": {
@@ -70,6 +70,11 @@
         "command": "tlcsdm.javafxSupport.setSceneBuilderPath",
         "title": "%command.setSceneBuilderPath.title%",
         "category": "%command.setSceneBuilderPath.category%"
+      },
+      {
+        "command": "tlcsdm.javafxSupport.showHelp",
+        "title": "%command.showHelp.title%",
+        "category": "%command.showHelp.category%"
       }
     ],
     "menus": {

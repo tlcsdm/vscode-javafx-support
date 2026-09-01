@@ -15,6 +15,7 @@ import { WorkspaceSymbolProvider } from './java/workspaceSymbolProvider';
 import { JavafxCssCompletionProvider, JavafxCssHoverProvider } from './css/javafxCssProvider';
 import { registerJavaClassCache } from './java/javaControllerResolver';
 import { FxmlCodeActionProvider } from './fxml/fxmlCodeActionProvider';
+import { showHelp } from './help/helpDocument';
 
 /**
  * Extension activation
@@ -36,6 +37,16 @@ export function activate(context: vscode.ExtensionContext): void {
             'tlcsdm.javafxSupport.setSceneBuilderPath',
             () => {
                 setSceneBuilderPath();
+            }
+        )
+    );
+
+    // Register Show Help command
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'tlcsdm.javafxSupport.showHelp',
+            () => {
+                void showHelp(context);
             }
         )
     );

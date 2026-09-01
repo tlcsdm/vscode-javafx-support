@@ -5,6 +5,8 @@
     "command.openInSceneBuilder.category": "JavaFX",
     "command.setSceneBuilderPath.title": "Scene Builder パスを設定",
     "command.setSceneBuilderPath.category": "JavaFX",
+    "command.showHelp.title": "ヘルプを表示",
+    "command.showHelp.category": "JavaFX",
     "config.title": "JavaFX サポート",
     "config.sceneBuilderPath.description": "Scene Builder 実行ファイルのパス。空の場合、拡張機能は自動的に検索します。",
     "config.outline.showFxId.description": "FXML アウトラインビューに fx:id 属性を表示します。",

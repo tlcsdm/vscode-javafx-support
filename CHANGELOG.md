@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.0.7] - 2026-09-01
+
+### Added
+- Add a localized in-editor user guide (English, Chinese, Japanese) opened with the new **JavaFX: Show Help** command, with the documents stored under the `help/` folder
+
 ## [1.0.6] - 2026-05-04
 
 ### Added
