@@ -57,8 +57,16 @@ export async function showHelp(context: vscode.ExtensionContext): Promise<void> 
     try {
         await vscode.commands.executeCommand('markdown.showPreview', helpUri);
     } catch {
-        // Fall back to opening the document if the Markdown preview is unavailable.
-        const document = await vscode.workspace.openTextDocument(helpUri);
-        await vscode.window.showTextDocument(document, { preview: true });
+        // Markdown preview may be unavailable (e.g. the built-in Markdown extension is disabled);
+        // fall back to opening the document directly.
+        try {
+            const document = await vscode.workspace.openTextDocument(helpUri);
+            await vscode.window.showTextDocument(document, { preview: true });
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            void vscode.window.showErrorMessage(
+                vscode.l10n.t('Failed to open the JavaFX help document: {0}', detail)
+            );
+        }
     }
 }
