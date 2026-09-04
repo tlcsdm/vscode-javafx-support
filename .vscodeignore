@@ -14,5 +14,6 @@ tsconfig.json
 *.md
 !README.md
 !CHANGELOG.md
+!help/**
 node_modules/**
 out/**

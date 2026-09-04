@@ -17,6 +17,7 @@ A VS Code extension for JavaFX development with FXML support.
 - 🔍 **Workspace Symbols** - Press `Ctrl+T` / `Cmd+T` to search `fx:id` values and matching `@FXML` field names across the workspace
 - 💡 **FXML Hover** - Optionally show controller field and event handler comments on hover
 - 🎨 **JavaFX CSS IntelliSense** - Get `-fx-` property completions, enum-like value suggestions, and hover details inside `.css` files and FXML `style` attributes, plus `styleClass` navigation/references/completion across workspace CSS files
+- 📖 **Built-in Help** - Open a localized user guide from inside VS Code with the **JavaFX: Show Help** command
 - 🌐 **Internationalization** - English, Chinese, Japanese language support
 
 ## Usage
@@ -89,6 +90,12 @@ Open any `.fxml` file and it will automatically use the FXML language mode with 
 - After properties such as `-fx-alignment:`, completion suggests common enum-like values such as `CENTER` and `TOP_LEFT`
 - Selecting a JavaFX CSS value inserts one space after `:` and appends `;`
 - Hover a JavaFX CSS property to see its syntax, default value, and where it applies
+
+### Help
+
+- Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **JavaFX: Show Help**
+- A localized user guide opens in the Markdown preview, matching your VS Code display language (English, Chinese, or Japanese) with an English fallback
+- The guide sources live in the [`help/`](help) folder
 
 ## Configuration
 
